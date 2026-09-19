@@ -1,9 +1,8 @@
 """
-Painel de Empregabilidade Jovem por Setor
-TP1 - Projeto de Bloco: IA Aplicada | Etapa 1 - Aplicacao demo
-
-Nesta etapa os dados sao uma AMOSTRA manual (lista de dicionarios).
-A coleta ao vivo via API do IBGE entra na Etapa 2.
+app.py - Painel de Empregabilidade Jovem
+TP2 - Projeto de Bloco: IA Aplicada | Etapa 2
+ 
+Consome as noticias coletadas da Agencia Brasil (scraping da Etapa 2).
 """
 
 import streamlit as st
