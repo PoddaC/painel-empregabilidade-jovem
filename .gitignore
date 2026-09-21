@@ -1,4 +1,4 @@
-#Ambiente Virtual
+# Ambiente Virtual
 .venv/
 venv/
 
@@ -9,9 +9,10 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Segredos
+# Segredos (o repo do Community Cloud e PUBLICO por padrao)
 .env
+.streamlit/secrets.toml
 
-#Sistema / IDE
+# Sistema / IDE
 .vscode/
-.DS_Store/
+.DS_Store

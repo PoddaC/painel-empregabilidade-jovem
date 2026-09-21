@@ -90,6 +90,9 @@ def chave(n):
 if "enviadas" not in st.session_state:
     st.session_state.enviadas = []
 
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
+
 # -------------------------------------------------------------------
 # Cabecalho
 # -------------------------------------------------------------------
@@ -111,8 +114,11 @@ if not noticias:
     st.stop()
 
 with st.expander("Adicionar noticias por CSV (upload)"):
-    enviado = st.file_uploader("Escolha um CSV", type="csv")
-    if enviado is not None:
+        enviado = st.file_uploader(
+        "Escolha um CSV", type="csv",
+        key=f"uploader_{st.session_state.uploader_key}",
+    )
+if enviado is not None:
         novas, erro = ler_csv_upload(enviado)
         if erro:
             st.error(erro)
@@ -121,8 +127,9 @@ with st.expander("Adicionar noticias por CSV (upload)"):
             adicionar = [n for n in novas if chave(n) not in ja_tenho]
             st.session_state.enviadas.extend(adicionar)
             st.success(f"{len(novas)} lidas | {len(adicionar)} novas adicionadas.")
-    if st.session_state.enviadas and st.button("Limpar enviadas"):
+if st.session_state.enviadas and st.button("Limpar enviadas"):
         st.session_state.enviadas = []
+        st.session_state.uploader_key += 1
         st.rerun()
 
 coletadas = [{**n, "origem": "coletada"} for n in noticias]
@@ -205,5 +212,21 @@ with col_e2:
     st.subheader("Noticias por mes")
     por_mes = Counter(n["ano_mes"] for n in filtradas)
     st.bar_chart(dict(sorted(por_mes.items())))
+
+# -------------------------------------------------------------------
+# Amostra do IBGE (TP1) - nao faz parte do scraping, mas ajuda a dar contexto e para continuidade do projeto. O TP1 coletou via API do IBGE, mas nao foi integrado ao scraping.
+# -------------------------------------------------------------------
+with st.expander("Ver dados de ocupacao por setor (amostra IBGE - TP1)"):
+    amostra_setores = [
+        {"setor": "Comercio, reparacao de veiculos", "ocupados_milhoes": 19.5, "variacao_ano_pct": 0.3},
+        {"setor": "Adm. publica, educacao, saude", "ocupados_milhoes": 19.0, "variacao_ano_pct": 5.0},
+        {"setor": "Informacao, comunicacao, financas", "ocupados_milhoes": 13.4, "variacao_ano_pct": 6.8},
+        {"setor": "Industria geral", "ocupados_milhoes": 13.3, "variacao_ano_pct": 2.3},
+        {"setor": "Servicos domesticos", "ocupados_milhoes": 5.7, "variacao_ano_pct": -4.1},
+    ]
+    st.dataframe(amostra_setores, use_container_width=True)
+    st.caption("Fonte: IBGE / PNAD Continua. Amostra do TP1; coleta via API prevista.")
+
+st.divider()
 
 st.caption(f"Fonte: {fonte}")
