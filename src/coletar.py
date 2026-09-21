@@ -29,7 +29,7 @@ PROCESSED = BASE / "data" / "processed"
 URL = "https://agenciabrasil.ebc.com.br/tags/emprego"
 CRAWL_DELAY = 10  # segundos, conforme robots.txt do site
 CABECALHO = {"User-Agent": "TP2-EmpregabilidadeJovem/1.0 (projeto academico)"}
- 
+N_PAGINAS = 3   # quantas paginas coletar (1 = so a primeira)
  
 def baixar(url):
     """Baixa a pagina UMA vez. Retorna o HTML (str) ou None se falhar."""
@@ -110,21 +110,15 @@ def gravar_csv(noticias):
  
  
 def main():
-    print(f"Baixando {URL} ...")
-    html = baixar(URL)
-    if html is None:
-        return
-    print(f"Snapshot salvo em: {salvar_snapshot(html)}")
- 
-    noticias = extrair(html)
-    print(f"Noticias extraidas: {len(noticias)}")
- 
-    caminho = gravar_csv(noticias)
-    if caminho:
-        print(f"CSV gravado em: {caminho}")
- 
-    # respeita o Crawl-delay caso voce estenda a coleta para varias paginas
-    time.sleep(CRAWL_DELAY)
+    todas = []
+    for page in range(N_PAGINAS):
+        html = baixar(f"{URL}?page={page}")
+        if html is None:
+            break
+        todas.extend(extrair(html))
+        time.sleep(CRAWL_DELAY)
+
+    gravar_csv(todas)
  
  
 if __name__ == "__main__":

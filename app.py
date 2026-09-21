@@ -1,77 +1,209 @@
 """
 app.py - Painel de Empregabilidade Jovem
 TP2 - Projeto de Bloco: IA Aplicada | Etapa 2
- 
+
 Consome as noticias coletadas da Agencia Brasil (scraping da Etapa 2).
 """
 
 import streamlit as st
+import re
+import io
+from collections import Counter
+import csv
+from wordcloud import WordCloud
+import simplemma
+from src.data_access import carregar_noticias
+
+st.set_page_config(page_title="Empregabilidade Jovem", layout="wide")
+
+CAMPOS = ["titulo", "editoria", "ano_mes", "url"]
+
+# Palavras vazias (stopwords) - DECISAO EDITORIAL: o que nao agrega a nuvem.
+# Esta lista cresce olhando o resultado; por isso fica visivel aqui.
+STOPWORDS = {
+    "de", "a", "o", "e", "do", "da", "em", "um", "uma", "para", "com", "nao",
+    "que", "os", "as", "no", "na", "por", "mais", "dos", "das", "ao", "pelo",
+    "pela", "se", "como", "mas", "ou", "ser", "ter", "dizer", "seu", "sua", "ano", "anos","diz",
+    "apos", "sobre", "entre", "ate", "e", "sao", "tem", "foi", "pode", "ja",
+}
+
 
 # -------------------------------------------------------------------
-# Amostra de dados (manual)
+# CACHE: le o CSV do scraping UMA vez e reaproveita entre reruns .
+# O dado e o mesmo para todos e caro de reler -> vai para o cache.
 # -------------------------------------------------------------------
-amostra_setores = [
-    {"setor": "Comercio, reparacao de veiculos", "ocupados_milhoes": 19.5, "variacao_ano_pct": 0.3},
-    {"setor": "Adm. publica, educacao, saude e servicos sociais", "ocupados_milhoes": 19.0, "variacao_ano_pct": 5.0},
-    {"setor": "Informacao, comunicacao, ativ. financeiras e profissionais", "ocupados_milhoes": 13.4, "variacao_ano_pct": 6.8},
-    {"setor": "Industria geral", "ocupados_milhoes": 13.3, "variacao_ano_pct": 2.3},
-    {"setor": "Servicos domesticos", "ocupados_milhoes": 5.7, "variacao_ano_pct": -4.1},
-]
+@st.cache_data
+def obter_noticias_coletadas():
+    return carregar_noticias()
+
+def contar_palavras(noticias):
+    """Conta as palavras dos titulos, reduzidas a forma de dicionario (lema).
+    Assim 'emprego', 'empregos' e ate 'cresce'/'cresceram' contam juntos."""
+    texto = " ".join(n["titulo"].lower() for n in noticias)
+    palavras = re.findall(r"[a-záàâãéêíóôõúç]+", texto)
+    lemas = [simplemma.lemmatize(p, lang="pt") for p in palavras]
+    lemas = [p for p in lemas if len(p) >= 3 and p not in STOPWORDS]
+    return Counter(lemas)
+
+def ler_csv_upload(arquivo):
+    """Le o CSV enviado. Retorna (lista, erro). Valida na BORDA, nunca levanta."""
+    try:
+        bruto = arquivo.getvalue().decode("utf-8")
+    except UnicodeDecodeError:
+        return [], "O arquivo nao esta em UTF-8. Salve o CSV como UTF-8 e tente de novo."
+    linhas = list(csv.DictReader(io.StringIO(bruto)))
+    if not linhas:
+        return [], "O CSV esta vazio."
+    if "titulo" not in linhas[0]:
+        return [], "O CSV precisa ter ao menos a coluna 'titulo'."
+    noticias = []
+    for l in linhas:
+        n = {c: (l.get(c) or "").strip() for c in CAMPOS}
+        if not n["editoria"]:
+            n["editoria"] = "n/d"
+        if not n["ano_mes"]:
+            n["ano_mes"] = "n/d"
+        if n["titulo"]:
+            noticias.append(n)
+    if not noticias:
+        return [], "Nenhuma linha com titulo valido no CSV."
+    return noticias, None
+ 
+ 
+def para_csv(noticias):
+    """Serializa a lista (com origem) para bytes CSV, para o download."""
+    buf = io.StringIO()
+    campos = CAMPOS + ["origem"]
+    w = csv.DictWriter(buf, fieldnames=campos)
+    w.writeheader()
+    for n in noticias:
+        w.writerow({c: n.get(c, "") for c in campos})
+    return buf.getvalue().encode("utf-8")
+ 
+ 
+def chave(n):
+    """Chave de deduplicacao: usa a url, e cai no titulo se a url faltar."""
+    return n["url"] or n["titulo"]
+ 
+ 
+# ESTADO DE SESSAO: guarda o que ESTE usuario enviou, entre reruns.
+if "enviadas" not in st.session_state:
+    st.session_state.enviadas = []
 
 # -------------------------------------------------------------------
-# Configuracao da pagina
+# Cabecalho
 # -------------------------------------------------------------------
-st.set_page_config(page_title="Empregabilidade Jovem por Setor", layout="wide")
+st.title("Painel de Empregabilidade Jovem")
+st.caption("TP2 - Projeto de Bloco: IA Aplicada | ODS 8 - Trabalho Decente e Crescimento Economico")
 
-# Titulo
-st.title("Painel de Empregabilidade Jovem por Setor")
-st.caption("TP1 - Projeto de Bloco: IA Aplicada | ODS 8 - Trabalho Decente e Crescimento Economico")
+# -------------------------------------------------------------------
+# Carrega os dados coletados
+# -------------------------------------------------------------------
+noticias, fonte = obter_noticias_coletadas()
 
-# Descricao do problema e objetivos
-st.header("O problema")
-st.write(
-    "Organizacoes de empregabilidade juvenil precisam decidir para quais setores "
-    "capacitar jovens em busca do primeiro emprego, mas costumam fazer isso sem "
-    "dados sobre onde o mercado realmente cria vagas. Este painel mostra quais "
-    "setores da economia estao absorvendo mais trabalhadores, apoiando essa decisao."
-)
+# GUARDA: se a coleta ainda nao rodou, nao adianta desenhar o resto (Aula 6)
+if not noticias:
+    st.warning(
+        "Ainda nao ha noticias coletadas. Rode a coleta no terminal, "
+        "a partir da raiz do projeto:\n\n"
+        "```\npython -m src.coletar\n```"
+    )
+    st.stop()
 
-st.subheader("Pergunta que orienta o projeto")
-st.write(
-    "Quais setores da economia estao em expansao e devem ser priorizados na "
-    "qualificacao de jovens em busca do primeiro emprego?"
-)
+with st.expander("Adicionar noticias por CSV (upload)"):
+    enviado = st.file_uploader("Escolha um CSV", type="csv")
+    if enviado is not None:
+        novas, erro = ler_csv_upload(enviado)
+        if erro:
+            st.error(erro)
+        else:
+            ja_tenho = {chave(n) for n in st.session_state.enviadas}
+            adicionar = [n for n in novas if chave(n) not in ja_tenho]
+            st.session_state.enviadas.extend(adicionar)
+            st.success(f"{len(novas)} lidas | {len(adicionar)} novas adicionadas.")
+    if st.session_state.enviadas and st.button("Limpar enviadas"):
+        st.session_state.enviadas = []
+        st.rerun()
 
-st.subheader("Objetivos")
-st.write(
-    "- Exibir a ocupacao por setor e sua variacao no ultimo ano.\n"
-    "- Coletar os dados via API do IBGE (Etapa 2), com atualizacao trimestral.\n"
-    "- Permitir identificar rapidamente os setores em expansao para direcionar cursos.\n"
-    "- Contribuir para a meta 8.6 do ODS 8 (jovens sem emprego, educacao ou formacao)."
-)
+coletadas = [{**n, "origem": "coletada"} for n in noticias]
+enviadas = [{**n, "origem": "enviada"} for n in st.session_state.enviadas]
+todas = coletadas + enviadas
+# -------------------------------------------------------------------
+# FILTROS - cada widget devolve o valor atual; ao mexer,
+# o script inteiro roda de novo (rerun) e redesenha a tela filtrada.
+# -------------------------------------------------------------------
+st.header("Noticias de emprego")
+ 
+# monta a lista de editorias disponiveis a partir dos proprios dados
+editorias = sorted({n["editoria"] for n in todas})
+opcoes = ["(todas)"] + editorias
+ 
+col_f1, col_f2 = st.columns([1, 2])
+with col_f1:
+    editoria_escolhida = st.selectbox("Editoria", opcoes)
+with col_f2:
+    busca = st.text_input("Buscar no titulo", placeholder="ex: desemprego, IBGE, vagas...")
+ 
+# aplica os filtros (Python puro sobre a lista de dicionarios)
+filtradas = todas
+if editoria_escolhida != "(todas)":
+    filtradas = [n for n in filtradas if n["editoria"] == editoria_escolhida]
+if busca.strip():
+    termo = busca.lower().strip()
+    filtradas = [n for n in filtradas if termo in n["titulo"].lower()]
+ 
+# -------------------------------------------------------------------
+# Resultado
+# -------------------------------------------------------------------
+st.caption(f"Mostrando {len(filtradas)} de {len(todas)} noticias.")
 
-# Metricas rapidas (calculadas a partir da amostra, em Python puro)
-st.header("Visao geral (amostra)")
-col1, col2, col3 = st.columns(3)
-col1.metric("Setores na amostra", len(amostra_setores))
-setor_topo = max(amostra_setores, key=lambda s: s["variacao_ano_pct"])
-col2.metric("Setor que mais cresceu", setor_topo["setor"].split(",")[0], f'+{setor_topo["variacao_ano_pct"]}%')
-total = sum(s["ocupados_milhoes"] for s in amostra_setores)
-col3.metric("Ocupados na amostra (milhoes)", f"{total:.1f}")
+if not filtradas:
+    st.info("Nenhuma noticia bate com esse filtro. Tente outro termo ou editoria.")
+else:
+    st.dataframe(filtradas, use_container_width=True)
+    st.download_button(
+        "Baixar estas noticias (CSV)",
+        data=para_csv(filtradas),
+        file_name="noticias_filtradas.csv",
+        mime="text/csv",
+    )
 
-# Tabela com a amostra dos dados
-st.header("Amostra dos dados que serao usados no projeto")
-st.dataframe(amostra_setores, use_container_width=True)
-st.caption(
-    "Fonte: IBGE / PNAD Continua - pessoas ocupadas por grupamento de atividade "
-    "(referencia 2025). Amostra manual desta etapa; a coleta via API entra na Etapa 2."
-)
+# -------------------------------------------------------------------
+# NUVEM DE PALAVRAS + ESTATISTICAS (a partir das noticias FILTRADAS)
+# -------------------------------------------------------------------
+st.header("O que essas noticias mais falam")
+ 
+contagem = contar_palavras(filtradas)
+ 
+if contagem:
+    col_n, col_b = st.columns(2)
+ 
+    with col_n:
+        st.subheader("Nuvem de palavras")
+        nuvem = WordCloud(
+            width=800, height=400, background_color="white", colormap="viridis",
+        ).generate_from_frequencies(contagem)
+        st.image(nuvem.to_array(), use_container_width=True)
+ 
+    with col_b:
+        st.subheader("Palavras mais frequentes")
+        top = dict(contagem.most_common(12))
+        st.bar_chart(top, horizontal=True)
+        st.caption("A nuvem mostra destaque; o grafico mostra a escala real.")
+else:
+    st.info("Poucas palavras para montar a nuvem com esse filtro.")
+ 
+# --- estatisticas basicas ---
+st.header("Estatisticas")
+ 
+col_e1, col_e2 = st.columns(2)
+with col_e1:
+    st.subheader("Noticias por editoria")
+    por_editoria = Counter(n["editoria"] for n in filtradas)
+    st.bar_chart(dict(por_editoria))
+with col_e2:
+    st.subheader("Noticias por mes")
+    por_mes = Counter(n["ano_mes"] for n in filtradas)
+    st.bar_chart(dict(sorted(por_mes.items())))
 
-# Links uteis
-st.header("Links uteis e fontes de inspiracao")
-st.write(
-    "- [Conecta Brasil](https://conectabrasil.org/home)\n"
-    "- [Observatorio do Terceiro Setor](https://observatorio3setor.org.br/)\n"
-    "- [PNAD Continua - IBGE](https://www.ibge.gov.br/estatisticas/sociais/trabalho/9173-pesquisa-nacional-por-amostra-de-domicilios-continua-trimestral.html)\n"
-    "- [ODS 8 - ONU Brasil](https://brasil.un.org/pt-br/sdgs/8)"
-)
+st.caption(f"Fonte: {fonte}")
