@@ -1,0 +1,3 @@
+Textos coletados de https://agenciabrasil.ebc.com.br/tags/emprego
+Conteudo da Empresa Brasil de Comunicacao (EBC), licenca Creative Commons.
+Coleta: src/coletar_textos.py - uso academico, Projeto de Bloco IA Aplicada.
