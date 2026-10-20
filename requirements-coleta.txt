@@ -1,0 +1,4 @@
+# Ambiente da COLETA (roda a parte, na sua maquina - nao vai para o Cloud).
+-r requirements.txt
+requests
+beautifulsoup4

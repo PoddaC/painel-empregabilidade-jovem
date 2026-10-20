@@ -1,0 +1,6 @@
+# Ambiente da API (roda a parte, no seu terminal - nao vai para o Cloud).
+# Sem versoes presas: fastapi antigo traz Starlette/Pydantic velhos
+# e quebra o Streamlit no mesmo ambiente.
+-r requirements.txt
+fastapi
+uvicorn
