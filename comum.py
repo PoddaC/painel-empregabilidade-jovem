@@ -12,13 +12,8 @@ CAMPOS = ["titulo", "editoria", "ano_mes", "url"]
 
 
 # -------------------------------------------------------------------
-# CACHE: o acervo e o mesmo para todos e caro de buscar -> cache. Com
-# prazo (ttl): se a API cair ou voltar, o painel percebe em ate 30 s.
-#
-# O painel PEDE os dados a API, como qualquer outro programa. Se ela nao
-# responder (desligada, ou no Streamlit Cloud, onde ela nao existe), o
-# plano B le o disco direto - e a barra lateral DIZ isso. Uma API fora do
-# ar degrada a origem do dado; nao derruba a interface.
+# CACHE com prazo de 30 s: se a API cair ou voltar, o painel percebe.
+# Pede os dados a API; se ela nao responder, le o disco e avisa.
 # -------------------------------------------------------------------
 @st.cache_data(ttl=30, show_spinner=False)
 def obter_noticias_coletadas():

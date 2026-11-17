@@ -3,11 +3,7 @@ api/main.py - a API do Painel de Empregabilidade Jovem.
 
     uvicorn api.main:app        ->  http://127.0.0.1:8000/docs
 
-Sem --reload no dia a dia: cada reinicio recarrega o modelo (segundos). O
---reload so vale para mexer nas rotas, com PAINEL_MOTOR=regras.
-
-Este arquivo so monta a API: o ciclo de vida (carregar o modelo uma vez),
-os routers e a rede de seguranca do 500. Quem responde esta em api/rotas/.
+Sem --reload: cada reinicio recarrega o modelo. As rotas estao em api/rotas/.
 """
 
 import logging

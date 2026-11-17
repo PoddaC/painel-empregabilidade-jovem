@@ -113,7 +113,7 @@ Quatro peças, com **um dono para cada escrita**:
 4. **Modelo** — fica no disco, baixado à parte, e só a API o acessa.
 
 No TP3, painel e API liam a mesma pasta lado a lado, e o painel não usava a
-própria API — o ponto apontado na revisão. Agora ele é o primeiro cliente dela.
+própria API. Agora ele é o primeiro cliente dela.
 O modelo mora na API para o painel publicado seguir leve, sem `torch`.
 
 **Ambientes separados:** `requirements.txt` declara o que o painel importa; os

@@ -123,11 +123,11 @@ if enviar:
 st.divider()
 
 # -------------------------------------------------------------------
-# AMOSTRA DO IBGE (TP1) - contexto do projeto, fora do scraping
+# AMOSTRA DO IBGE - contexto do projeto, fora do scraping
 # -------------------------------------------------------------------
 st.header("Ocupação por setor (amostra IBGE)")
 st.caption(
-    "Amostra do TP1, coletada via API do IBGE / PNAD Continua. Nao faz parte "
+    "Amostra coletada via API do IBGE / PNAD Continua. Nao faz parte "
     "do scraping; fica aqui pela continuidade do projeto."
 )
 

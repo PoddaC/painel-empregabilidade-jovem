@@ -1,10 +1,8 @@
 # Escolha do modelo de linguagem — Painel de Empregabilidade Jovem
 
-> TP4, item 1: justificar a escolha do modelo pelos critérios de **desempenho**,
-> **custo computacional local** e **acessibilidade local**. Este documento
-> diz o que o modelo precisa fazer, quais candidatos foram considerados, como
-> foram medidos e por que um deles foi escolhido. Os números vêm da bancada
-> (`python -m src.bancada`), gerados na máquina descrita no relatório
+> A escolha do modelo pelos critérios de **desempenho**, **custo computacional
+> local** e **acessibilidade local**. Os números vêm da bancada
+> (`python -m src.bancada`); o relatório completo está em
 > [`bancada_resultados.md`](bancada_resultados.md).
 
 ## 1. O que o modelo precisa fazer
@@ -74,9 +72,8 @@ antes do download:
 | Qwen2.5-1.5B | 6,2 GB | 3,1 GB | sim, com folga |
 | Qwen3-1.7B | 6,8 GB | 3,4 GB | sim |
 
-Na CPU, o float16 é **lento**: o professor mediu 4,74 s contra 0,61 s
-(Aula 15). Por isso o projeto usa **float16 na GPU e float32 na CPU**,
-escolhido sozinho pelo dispositivo (`src/analisador_llm.py`).
+Na CPU, o float16 é lento. Por isso o projeto usa **float16 na GPU e float32
+na CPU**, escolhido sozinho pelo dispositivo.
 
 ## 4. O banco de provas
 
@@ -154,10 +151,9 @@ escolha abaixo é uma exceção, registrada como tal:
   recomendado** neste acervo: a análise continua disponível, mas a página
   avisa que ela não superou o chute "mercado em geral".
 - **Custo computacional local:** 3,1 GB de download, 2,9 GB de pesos, 3,2 GB de
-  pico na GPU (cabe na placa de 8 GB com folga), 6 s para carregar (15 s na
-  primeira vez, com o disco ainda frio), **0,07 s
-  por análise** na RTX 4060 Ti (0,26 s de ponta a ponta no painel). Na CPU não
-  foi medido aqui; o professor mediu ~2,8 s por análise em float32 (Aula 15).
+  pico na GPU (cabe na placa de 8 GB com folga), 6 a 15 s para carregar,
+  **0,07 s por análise** na RTX 4060 Ti (0,26 s de ponta a ponta no painel).
+  Na CPU não foi medido.
 - **Acessibilidade:** Apache 2.0, sem *gated*, `transformers` + `torch`,
   offline depois de `python -m src.baixar_modelo`.
 
@@ -176,8 +172,8 @@ analisou.
 
 | Decisão | Por quê |
 |---|---|
-| **Pontuar, não escrever.** As opções viram letras (A, B, C…), e se lê a nota que o modelo dá a cada letra como *próxima palavra*; o `softmax` dessas notas vira a probabilidade de cada categoria. | A resposta é sempre uma categoria da lista: o contrato `ResultadoAnalise` nunca quebra. Um modelo que escreve devolveu "Chuveiro" na Aula 16. |
-| **O prompt traz a definição de cada categoria.** | Com só os nomes, os modelos pequenos acertam muito menos (Aula 16: 4 contra 11 de 30 no Qwen 0.5B). |
+| **Pontuar, não escrever.** As opções viram letras (A, B, C…), e se lê a nota que o modelo dá a cada letra como *próxima palavra*; o `softmax` dessas notas vira a probabilidade de cada categoria. | A resposta é sempre uma categoria da lista: o contrato `ResultadoAnalise` nunca quebra. Um modelo que escreve pode devolver qualquer palavra. |
+| **O prompt traz a definição de cada categoria.** | Com só os nomes, modelos pequenos confundem as categorias. |
 | **Carregar uma vez, no `lifespan`.** | Carregar a cada pedido custa segundos por análise. Com o `lifespan`, a carga acontece só quando a API sobe. |
 | **Falhar em pedaços.** O carregamento nunca levanta exceção; se o modelo não sobe, o motivo fica guardado. | A API sobe do mesmo jeito: notícias respondem 200, `/processar_texto` responde **503** com o motivo, e `/saude` mostra o estado. |
 | **`local_files_only=True` + `src/baixar_modelo.py`.** | O modelo está no disco ou não está. Sem isso, a subida tentaria baixar gigabytes e ficaria muda por um minuto. |

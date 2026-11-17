@@ -5,13 +5,9 @@ baixar_modelo.py - o download do modelo, como passo A PARTE.
     python -m src.baixar_modelo --bancada    # + os candidatos que a bancada compara
     python -m src.baixar_modelo --so qwen15,qwen3_17     # so alguns (apelidos da bancada)
 
-E o mesmo principio da coleta (src/coletar.py): o que depende da internet
-roda separado, antes. A API so le do disco (local_files_only=True) - sem o
-modelo baixado, ela sobe do mesmo jeito e responde 503 explicando o que
-falta, em vez de ficar muda baixando gigabytes na subida (Aula 16: 71 s).
-
-O modelo vai para o cache do HuggingFace (~/.cache/huggingface, ou a pasta
-em HF_HOME). Nada disso vai para o Git: sao gigabytes.
+Como a coleta, o que depende da internet roda separado. A API so le do
+disco. O modelo vai para o cache do HuggingFace (~/.cache/huggingface),
+fora do Git.
 """
 
 from pathlib import Path

@@ -1,16 +1,8 @@
 """
 api/modelos.py - os contratos da API, nas duas direcoes.
 
-Quem recebe, valida (Aula 12): os modelos de ENTRADA recusam com 422 o que
-nao cabe - inclusive campo a mais (extra="forbid"), em vez de descartar em
-silencio.
-
-Quem responde, promete (Aula 13): cada rota declara um modelo de RESPOSTA.
-Ele filtra (so sai o que esta no modelo), confere (o que sai passa pela
-validacao) e documenta (o /docs mostra os campos, nao "string").
-
-Um contrato para cada direcao: a noticia que ENTRA nao tem id nem origem;
-a que SAI, tem.
+Entrada: recusa com 422 o que nao cabe, inclusive campo a mais.
+Saida: cada rota declara o formato do que devolve, e o /docs o mostra.
 """
 
 from typing import Literal
@@ -95,7 +87,7 @@ class NoticiaGravada(BaseModel):
 
 
 # -------------------------------------------------------------------
-# ANALISE - o contrato do POST /processar_texto (TP4, itens 2 e 3)
+# ANALISE - o contrato do POST /processar_texto
 # -------------------------------------------------------------------
 class PedidoAnalise(BaseModel):
     model_config = ConfigDict(

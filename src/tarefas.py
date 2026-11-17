@@ -1,15 +1,7 @@
 """
 tarefas.py - O QUE o modelo responde: as duas perguntas e as categorias.
 
-Fica fora da API e dos motores de proposito. A API usa as listas para o
-contrato (a categoria devolvida e SEMPRE uma destas), cada motor usa as
-definicoes para perguntar, e a bancada usa as duas para medir. Mudar uma
-categoria e mudar aqui - e so aqui.
-
-As duas tarefas respondem a pergunta do projeto por partes:
-- "setor":     DE QUE setor a noticia fala?
-- "tendencia": o que ela diz sobre o emprego - melhora, piora ou nada claro?
-Cruzadas, viram o sinal que a ONG procura: setores com noticias de expansao.
+Usado pela API, pelos motores e pela bancada: mudar uma categoria e mudar so aqui.
 """
 
 TAREFAS = {

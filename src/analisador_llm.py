@@ -4,21 +4,10 @@ analisador_llm.py - o modelo de linguagem LOCAL que analisa as noticias.
     python -m src.baixar_modelo        # UMA vez, com internet
     uvicorn api.main:app               # depois, offline
 
-Tres decisoes, cada uma com o motivo (detalhe em docs/escolha_do_modelo.md):
-
-1. O MODELO MORA NO DISCO. Carrega com local_files_only=True: ou o modelo
-   esta na maquina, ou nao esta - e a API responde 503 em menos de um
-   segundo, em vez de tentar baixar gigabytes no meio da subida.
-
-2. O MODELO NAO ESCREVE: ELE PONTUA. Um modelo que escreve pode devolver
-   qualquer coisa ("Chuveiro" nao e categoria - Aula 16). Aqui as opcoes
-   viram letras (A, B, C...) e se le a nota que o modelo da a CADA letra como
-   proxima palavra. A resposta e sempre uma das categorias da lista, e as
-   notas viram probabilidades que somam 1.
-
-3. GPU SE HOUVER, e o tipo dos numeros conforme o dispositivo: float16 na
-   placa de video (metade da memoria, rapido), float32 na CPU (onde float16
-   e LENTO - medido na Aula 15: 4,74 s x 0,61 s).
+- Carrega so do disco (local_files_only): sem o modelo baixado, falha na hora.
+- Nao escreve: pontua as letras das opcoes, entao a resposta e sempre uma
+  categoria da lista.
+- float16 na GPU, float32 na CPU (onde float16 e lento).
 """
 
 import os

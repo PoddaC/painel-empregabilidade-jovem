@@ -67,7 +67,7 @@ Depois do passo 2, a API e o painel funcionam **sem internet**.
 | O que faz | Classifica uma notícia em **tendência do emprego** (otimista, pessimista, neutra) ou **setor da economia** |
 | Download | ~3,1 GB, para o cache do HuggingFace (`~/.cache/huggingface`, ou a pasta em `HF_HOME`) |
 | Memória | ~3,1 GB na GPU (float16) · ~6,2 GB de RAM na CPU (float32) |
-| Tempo | 0,07 s por análise na RTX 4060 Ti (0,26 s de ponta a ponta no painel) · carga de 6 a 15 s · na CPU, ~3 s (não medido aqui) |
+| Tempo | 0,07 s por análise na RTX 4060 Ti (0,26 s de ponta a ponta no painel) · carga de 6 a 15 s · na CPU, não medido |
 | Por que este | [`docs/escolha_do_modelo.md`](docs/escolha_do_modelo.md), com a bancada em [`docs/bancada_resultados.md`](docs/bancada_resultados.md) |
 
 **Modelos testados e descartados:**

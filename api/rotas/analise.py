@@ -1,11 +1,8 @@
 """
-api/rotas/analise.py - o modelo de linguagem atras de uma rota (TP4).
+api/rotas/analise.py - o modelo de linguagem atras de uma rota.
 
     POST /processar_texto   PedidoAnalise -> ResultadoAnalise
     GET  /saude             o motor esta carregado?
-
-O contrato veio antes do motor (Aula 13): a rota recebe um texto validado,
-devolve sempre o mesmo formato, e cada falha tem um status e uma frase.
 """
 
 import time
@@ -42,11 +39,8 @@ def processar_texto(pedido: PedidoAnalise):
     O modelo le o comeco do texto (titulo, linha fina e primeiros
     paragrafos - a piramide invertida); o trecho lido volta na resposta.
     A `confianca` e a nota do modelo, **nao** a chance de acerto.
-
-    Esta rota e `def`, e nao `async def`, de proposito: rodar o modelo e
-    CALCULAR, nao esperar. Numa `async def` o calculo travaria a API inteira
-    - nem o /saude responderia (Aula 16: 1,64 s x 0,00 s).
     """
+    # def, e nao async def: o calculo do modelo travaria as outras rotas.
     analisador = motor.MOTORES.get("analise")
     if analisador is None:
         raise HTTPException(

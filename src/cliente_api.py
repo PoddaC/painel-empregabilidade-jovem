@@ -1,15 +1,9 @@
 """
 cliente_api.py - o painel falando com a API do projeto por HTTP.
 
-O painel pede; a API valida, grava e analisa (Aula 12: um dono para cada
-escrita). E o painel le cada resposta PELO STATUS (Aula 14): so a API sabe
-o que aconteceu, e o status diz como ler o corpo -
-
-    422 -> o "detail" e uma LISTA de problemas (traduzidos aqui)
-    4xx/5xx -> o "detail" e uma FRASE (mostrada como veio)
-
-O endereco e configuracao, nao codigo: PAINEL_API_URL (padrao: a sua
-maquina, porta 8000).
+Cada resposta e lida pelo status: no 422 o "detail" e uma lista de
+problemas (traduzidos aqui); nos outros erros, uma frase.
+Endereco da API: PAINEL_API_URL (padrao http://127.0.0.1:8000).
 """
 
 import os
@@ -114,4 +108,4 @@ def analisar(texto, tipo_analise):
 def enviar_noticia(titulo, editoria, ano_mes, url):
     corpo = {"titulo": titulo, "editoria": editoria or "n/d",
              "ano_mes": ano_mes or "n/d", "url": url}
-    return _pedir("POST", "/noticias", json=corpo)  # json=, nunca data= (Aula 12)
+    return _pedir("POST", "/noticias", json=corpo)

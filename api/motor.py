@@ -1,13 +1,8 @@
 """
 api/motor.py - onde mora o modelo carregado, e como ele e carregado.
 
-Quem pesa, carrega uma vez (Aula 16). O modelo leva segundos e gigabytes
-para subir; por isso e carregado UMA vez, quando a API sobe (o lifespan, em
-api/main.py), e fica aqui, em MOTORES, para todos os pedidos.
-
-Falhe em pedaços (Aula 14): se o modelo nao carrega, a API sobe do mesmo
-jeito. As rotas de noticias seguem respondendo; o /processar_texto responde
-503 com o motivo. Uma excecao no lifespan derrubaria a API inteira.
+O modelo e carregado UMA vez, quando a API sobe, e fica em MOTORES.
+Se nao carregar, a API sobe mesmo assim: so a analise responde 503.
 
 Variaveis de ambiente (todas opcionais):
     PAINEL_MOTOR       llm (padrao) | regras
@@ -26,9 +21,8 @@ log = logging.getLogger("api")
 MOTORES = {}            # "analise" -> o motor carregado
 ESTADO = {"motivo": None}
 
-# UM trabalhador: dois pedidos ao mesmo tempo dividiriam a CPU/GPU e cada um
-# levaria o dobro (Aula 16: 4,6 s cada x 2,5 s sozinho). Em fila, o primeiro
-# termina no tempo dele. O limite de tempo conta a espera na fila.
+# Um trabalhador: as analises fazem fila em vez de dividir a GPU.
+# O limite de tempo conta a espera na fila.
 EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="motor")
 
 

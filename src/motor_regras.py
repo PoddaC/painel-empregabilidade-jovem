@@ -1,14 +1,8 @@
 """
 motor_regras.py - a linha de base: palavras-chave, sem modelo nenhum.
 
-Nao e o motor do produto. Esta aqui por dois motivos:
-1. MEDIR: a bancada compara cada modelo com ele. Um modelo de centenas de MB
-   so se justifica se acertar mais do que uma lista de palavras.
-2. ALTERNATIVA DECLARADA: numa maquina que nao aguenta o modelo, a API pode
-   subir com PAINEL_MOTOR=regras - e a resposta diz que foi este motor.
-
-Quando nenhuma palavra aparece, ele CALA (categoria None) em vez de chutar.
-Errar e calar nao sao a mesma coisa - a bancada conta os dois.
+Serve de comparacao na bancada e de plano B na API (PAINEL_MOTOR=regras).
+Sem nenhuma palavra encontrada, nao responde (categoria None).
 """
 
 import re

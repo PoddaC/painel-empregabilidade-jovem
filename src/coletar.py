@@ -28,7 +28,7 @@ PROCESSED = BASE / "data" / "processed"
  
 URL = "https://agenciabrasil.ebc.com.br/tags/emprego"
 CRAWL_DELAY = 10  # segundos, conforme robots.txt do site
-CABECALHO = {"User-Agent": "TP2-EmpregabilidadeJovem/1.0 (projeto academico)"}
+CABECALHO = {"User-Agent": "EmpregabilidadeJovem/1.0 (projeto academico)"}
 N_PAGINAS = 3   # quantas paginas coletar (1 = so a primeira)
  
 def baixar(url):

@@ -4,13 +4,8 @@ espiar_modelo.py - o que o modelo ESCREVERIA, e quanto da aposta dele cai nas le
     python -m src.espiar_modelo Qwen/Qwen3-1.7B
     python -m src.espiar_modelo Qwen/Qwen2.5-1.5B-Instruct
 
-A analise pontua so as letras das opcoes (A, B, C...). Isso so vale se o
-modelo de fato QUER responder com uma letra. Se a primeira palavra que ele
-escreveria e outra coisa (um "**", um "A resposta e"...), a nota das letras
-e um resto de probabilidade - e a "escolha" vira ruido com confianca alta.
-
-Este script mostra, para uma noticia, a "massa nas letras" (quanto da
-aposta total do modelo foi para as letras) e o que ele escreveria.
+Diagnostico: mostra, para uma noticia, quanto da aposta do modelo cai nas
+letras das opcoes e o que ele escreveria.
 """
 
 import sys

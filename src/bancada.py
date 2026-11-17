@@ -1,19 +1,11 @@
 """
-bancada.py - quem escolhe, mede (Aula 15).
+bancada.py - mede os modelos candidatos no banco de provas.
 
     python -m src.baixar_modelo --bancada    # uma vez: baixa os candidatos
     python -m src.bancada                    # mede todos os que estao no disco
     python -m src.bancada --so regras,qwen15 # mede so alguns
 
-Roda cada candidato sobre o BANCO DE PROVAS - as 42 noticias reais do
-acervo, rotuladas a mao ANTES de rodar qualquer modelo
-(data/analisador/banco_de_provas.csv) - nas duas tarefas, e anota:
-
-- desempenho: acertos, ERROS e SILENCIOS (sem resposta) - contados a parte,
-  porque errar e calar nao sao a mesma coisa;
-- custo: memoria dos pesos, tempo para carregar e tempo por analise -
-  NESTA maquina, que vai anotada no relatorio;
-- a confianca dos erros: quantos erros vieram com confianca >= 0,9.
+Anota acertos, erros e silencios, memoria e tempo, nesta maquina.
 
 Saidas:
     data/analisador/bancada_previsoes.csv   cada resposta de cada candidato

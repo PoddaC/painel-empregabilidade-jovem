@@ -1,10 +1,7 @@
 """
 analisador.py - o modelo de linguagem local, pela tela.
 
-A pagina nao carrega modelo nenhum: ela PEDE a analise a API
-(POST /processar_texto), e mostra o que a API disse - inclusive quando
-diz que nao deu. Por isso o painel publicado (Streamlit Cloud) nao precisa
-de torch: o peso mora na API, na sua maquina.
+A pagina nao carrega modelo: pede a analise a API (POST /processar_texto).
 """
 
 import streamlit as st

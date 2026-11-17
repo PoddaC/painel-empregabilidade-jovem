@@ -23,9 +23,7 @@ router = APIRouter(tags=["noticias"])
 CSV_API = PROCESSED / "noticias_via_api.csv"
 COLUNAS_API = ["titulo", "editoria", "ano_mes", "url", "recebida_em"]
 
-# Rotas def rodam em paralelo (threads). Dois POSTs ao mesmo tempo
-# escreveriam no mesmo arquivo juntos - a trava faz um esperar o outro,
-# so durante a gravacao (Aula 12).
+# Dois POSTs ao mesmo tempo: a trava faz um esperar o outro gravar.
 TRAVA_GRAVACAO = threading.Lock()
 
 SEM_ACERVO = (
@@ -64,9 +62,8 @@ def acervo():
     """
     Coletadas + recebidas pela API, cada uma com sua origem.
 
-    Sem coleta nenhuma nesta maquina, levanta 503: "nao coletado" nao e o
-    mesmo que "nenhuma noticia" - um 200 vazio faria o cliente concluir que
-    nao ha noticias de emprego (o "zero que nao era zero", Aula 13).
+    Sem coleta nesta maquina, levanta 503: "nao coletado" nao e o mesmo
+    que "nenhuma noticia" (um 200 vazio enganaria o cliente).
     """
     if not CSV_NOTICIAS.exists() and not CSV_API.exists():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=SEM_ACERVO)

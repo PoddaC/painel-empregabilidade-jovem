@@ -1,5 +1,5 @@
 """
-data_access.py - camada de LEITURA dos dados (Aula 6)
+data_access.py - camada de LEITURA dos dados
 
 Quem le o disco e este arquivo - a API, e o painel quando a API nao
 responde. Se a fonte mudar (outra pagina, outro formato), muda-se so aqui.

@@ -1,10 +1,8 @@
 """
 api/erros.py - a rede de seguranca e a documentacao dos erros.
 
-Voce nao vai prever tudo (Aula 14). Para o que escapar, a rede: o cliente
-recebe um 500 em JSON, com uma frase e um CODIGO; o terminal recebe o
-traceback com o mesmo codigo. Ao usuario, a frase; ao log, o traceback -
-nunca o caminho de arquivo ou a pilha de chamadas no detail.
+Erro nao previsto: o cliente recebe um 500 em JSON com um codigo; o
+terminal recebe o traceback com o mesmo codigo.
 """
 
 import logging
