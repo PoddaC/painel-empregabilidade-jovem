@@ -5,17 +5,11 @@
 
 O que mudou no TP4:
 
-1. O texto integral das notícias passou a ser **lido por um modelo de
-   linguagem local**, que devolve uma análise estruturada (seção "Dados do
-   analisador").
-2. Entrou um **banco de provas rotulado à mão**: 42 notícias reais, usadas
-   para medir e escolher o modelo.
-3. O painel deixou de ler o CSV direto: **pede os dados à API**, que passou a
-   ser a única leitora e gravadora do acervo para os outros. A leitura direta
-   do disco virou plano B declarado.
-4. As notícias recebidas pela API saíram do repositório (`.gitignore`): é
-   conteúdo enviado por pessoas e programas, que não vai para repositório
-   público.
+1. O texto integral passou a ser **lido por um modelo de linguagem local**
+   (seção "Dados do analisador").
+2. Entrou um **banco de provas rotulado à mão**, para medir e escolher o modelo.
+3. O painel agora **pede os dados à API**; ler o disco direto virou plano B.
+4. As notícias recebidas pela API saíram do repositório (`.gitignore`).
 
 O que mudou no TP3, em relação ao TP2:
 
@@ -111,39 +105,28 @@ upload: o mesmo tipo de dado, entrando sem que ninguém precise abrir uma tela.
   coletadas, com o carimbo de hora do recebimento. Procedência não se mistura: no
   acervo, essas linhas aparecem com origem `via_api`. O arquivo está no
   `.gitignore`: o que pessoas e programas enviam não vai para o repositório.
-- **Quem envia (TP4):** além de outros programas, a própria página "Dados e
-  método" tem um formulário que envia pela API. O painel só diz "gravada"
-  quando a API responde 201; um 409 vira aviso, um 422 vira a lista do que
-  corrigir.
+- **Quem envia (TP4):** outros programas e o formulário da página "Dados e
+  método", que só diz "gravada" quando a API confirma.
 - **Princípio:** dado que vem de fora é **entrada não confiável**. A validação
   não é cortesia com o usuário, é defesa do acervo.
 
 ## Dados do analisador (novos no TP4)
 
 ### O modelo de linguagem — HuggingFace Hub
-O modelo (`Qwen/Qwen2.5-1.5B-Instruct`) é um artefato externo, como uma
-fonte: tem procedência e licença, e é baixado uma vez.
+O modelo (`Qwen/Qwen2.5-1.5B-Instruct`) tem procedência e licença, como uma fonte.
 
-- **Como chega:** arquivos de pesos (`safetensors`), configuração e
-  tokenizador, baixados por `python -m src.baixar_modelo` para o cache local
-  do HuggingFace. Cerca de 3,1 GB. Não vai para o Git.
-- **Licença:** Apache 2.0, sem pedido de acesso. Os critérios da escolha
-  estão em `docs/escolha_do_modelo.md`.
-- **Depois do download:** a API carrega com `local_files_only=True`, sem
-  tocar a internet.
+- **Como chega:** ~3,1 GB de arquivos, baixados uma vez por
+  `python -m src.baixar_modelo` para o cache do HuggingFace. Não vai para o Git.
+- **Licença:** Apache 2.0, sem pedido de acesso.
+- **Depois do download:** a API o carrega do disco, sem internet.
 
 ### O banco de provas — `data/analisador/banco_de_provas.csv`
 - **O que é:** as 42 notícias do acervo, cada uma com o rótulo esperado nas
   duas tarefas (`tendencia`, `setor`) e uma `observacao` nos casos difíceis.
-- **Como foi feito:** rotulado à mão, **antes** de rodar qualquer modelo,
-  seguindo as definições de `src/tarefas.py`. O texto não é copiado: o banco
-  guarda o `id` da notícia e a bancada monta o texto a partir do acervo, do
-  mesmo jeito que o painel.
-- **Distribuição:** tendência com 26 otimistas, 12 neutras e 4 pessimistas;
-  setor com 31 "mercado em geral" e 11 notícias espalhadas por cinco setores.
-  É o retrato do acervo, que cobre um período de mercado de trabalho
-  aquecido, e é por isso que a linha de base "sempre a mais comum" entra na
-  comparação.
+- **Como foi feito:** rotulado à mão **antes** de rodar qualquer modelo; guarda
+  só o `id`, e o texto vem do acervo.
+- **Distribuição:** 26 otimistas, 12 neutras e 4 pessimistas; 31 "mercado em
+  geral" e 11 em cinco setores. Por isso "sempre a mais comum" entra na comparação.
 - **Limites:** 42 itens (um acerto vale 2,4 pontos); rótulos de uma pessoa só.
 
 ### As previsões da bancada — `data/analisador/bancada_previsoes.csv`
@@ -154,13 +137,9 @@ confiança, segundos). Gerado por `python -m src.bancada`, junto com
 ### As análises — `POST /processar_texto`
 - **Entrada (JSON):** `texto` (15 a 20.000 caracteres) e `tipo_analise`
   (`tendencia` ou `setor`). Campo a mais é recusado (422).
-- **Saída (JSON, contrato `ResultadoAnalise`):** a categoria (sempre uma da
-  lista da tarefa), o rótulo, a confiança, todas as alternativas com
-  probabilidade, o **trecho que o modelo leu** (os primeiros ~1.500
-  caracteres), quem analisou e quanto levou.
-- **Não são gravadas.** A análise é refeita a cada pedido. Como a pontuação
-  não sorteia nada, o mesmo texto no mesmo modelo e dispositivo dá a mesma
-  categoria.
+- **Saída (JSON, `ResultadoAnalise`):** a categoria (sempre da lista), a
+  confiança, as alternativas, o trecho lido, quem analisou e quanto levou.
+- **Não são gravadas:** a análise é refeita a cada pedido.
 
 ## Fonte 4 (amostra; coleta futura): ocupação por setor — PNAD Contínua / IBGE
 

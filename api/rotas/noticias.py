@@ -13,7 +13,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query, status
 
 from api.erros import erro
-from api.modelos import (Editorias, Estatisticas, ListaNoticias, Noticia,
+from api.modelos import (Editorias, Estatisticas, ListaNoticias,
                          NoticiaComTexto, NoticiaEntrada, NoticiaGravada)
 from src.data_access import (CSV_NOTICIAS, PROCESSED, carregar_noticias,
                              id_da_noticia, ler_texto)

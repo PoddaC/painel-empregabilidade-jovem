@@ -228,8 +228,8 @@ def main():
 
     print(f"\nPronto: {baixadas} baixadas, {reaproveitadas} ja em disco, "
           f"{falhas} falhas.")
-    print(f"Textos em: data/processed/textos/")
-    print(f"CSV atualizado: data/processed/noticias_emprego.csv")
+    print("Textos em: data/processed/textos/")
+    print("CSV atualizado: data/processed/noticias_emprego.csv")
 
 
 if __name__ == "__main__":

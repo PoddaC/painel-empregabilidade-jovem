@@ -28,7 +28,6 @@ import sys
 import time
 from collections import Counter
 from datetime import datetime
-from pathlib import Path
 
 from src.data_access import BASE, carregar_noticias, id_da_noticia, ler_texto
 from src.tarefas import TIPOS, montar_texto
