@@ -1,6 +1,14 @@
-# Ambiente da API (roda a parte, no seu terminal - nao vai para o Cloud).
-# Sem versoes presas: fastapi antigo traz Starlette/Pydantic velhos
-# e quebra o Streamlit no mesmo ambiente.
+# Ambiente da API + modelo de linguagem (roda na sua maquina - nao vai para o Cloud).
+# Sem versoes presas: fastapi antigo traz Starlette/Pydantic velhos e quebra
+# o Streamlit no mesmo ambiente.
+#
+# torch: no Windows, o "pip install torch" comum instala a versao SO DE CPU.
+# Para usar a placa de video NVIDIA, instale ANTES o torch com CUDA, com o
+# comando que o seletor de https://pytorch.org/get-started/locally/ mostrar
+# (Stable, Windows, Pip, Python, CUDA). Sem GPU, o projeto roda na CPU.
 -r requirements.txt
 fastapi
 uvicorn
+torch
+transformers
+huggingface_hub

@@ -16,3 +16,11 @@ __pycache__/
 # Sistema / IDE
 .vscode/
 .DS_Store
+
+# O que PESSOAS e PROGRAMAS enviam pela API nao vai para repositorio publico
+data/processed/noticias_via_api.csv
+
+# Modelos baixados ficam no cache do HuggingFace, fora do projeto.
+# Se voce apontar HF_HOME para dentro do projeto, ignore a pasta:
+modelos/
+.pytest_cache/

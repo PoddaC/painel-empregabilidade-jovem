@@ -3,37 +3,54 @@ comum.py - o que mais de uma pagina usa.
 
 """
 
-import csv
-import io
-
 import streamlit as st
 
-from src.data_access import carregar_noticias
+from src import cliente_api
+from src.data_access import carregar_noticias, id_da_noticia
 
 CAMPOS = ["titulo", "editoria", "ano_mes", "url"]
 
 
 # -------------------------------------------------------------------
-# CACHE: le o CSV do scraping UMA vez e reaproveita entre reruns.
-# O dado e o mesmo para todos e caro de reler -> vai para o cache.
+# CACHE: o acervo e o mesmo para todos e caro de buscar -> cache. Com
+# prazo (ttl): se a API cair ou voltar, o painel percebe em ate 30 s.
+#
+# O painel PEDE os dados a API, como qualquer outro programa. Se ela nao
+# responder (desligada, ou no Streamlit Cloud, onde ela nao existe), o
+# plano B le o disco direto - e a barra lateral DIZ isso. Uma API fora do
+# ar degrada a origem do dado; nao derruba a interface.
 # -------------------------------------------------------------------
-@st.cache_data
+@st.cache_data(ttl=30, show_spinner=False)
 def obter_noticias_coletadas():
-    return carregar_noticias()
+    """Devolve (lista, fonte, via) - via e 'api' ou 'disco'."""
+    try:
+        return cliente_api.listar_noticias(), "API do projeto (GET /noticias)", "api"
+    except (cliente_api.APIForaDoAr, cliente_api.FalhaDaAPI):
+        noticias, fonte = carregar_noticias()
+        lidas = [{**n, "id": id_da_noticia(n), "origem": "coletada",
+                  "tem_texto": bool(n.get("arquivo_texto"))} for n in noticias]
+        return lidas, fonte + " - lida do disco (a API nao respondeu)", "disco"
 
 
 def obter_todas():
     """
-    Devolve (lista, fonte) com as coletadas e as enviadas pelo usuario,
-    cada linha marcada com sua origem.
+    Devolve (lista, fonte) com o acervo e as enviadas pelo usuario nesta
+    sessao, cada linha marcada com sua origem (coletada, via_api, enviada).
 
     A origem importa: dado sem procedencia ninguem audita - e e isso que o
     Data Summary Report cobra.
     """
-    noticias, fonte = obter_noticias_coletadas()
-    coletadas = [{**n, "origem": "coletada"} for n in noticias]
+    noticias, fonte, via = obter_noticias_coletadas()
     enviadas = [{**n, "origem": "enviada"} for n in st.session_state.enviadas]
-    return coletadas + enviadas, fonte
+    if via == "api":
+        st.sidebar.caption("Dados: via API do projeto")
+    else:
+        st.sidebar.warning(
+            "A API do projeto não respondeu: as notícias foram lidas direto do "
+            "disco, e o Analisador fica indisponível. Para ligá-la: "
+            "`uvicorn api.main:app`"
+        )
+    return noticias + enviadas, fonte
 
 
 def guarda_sem_dados(todas):

@@ -36,6 +36,7 @@ pagina = st.navigation({
         st.Page("paginas/inicio.py", title="Início", icon="🏠", default=True),
         st.Page("paginas/noticias.py", title="Notícias", icon="📰"),
         st.Page("paginas/analise.py", title="Análise", icon="📊"),
+        st.Page("paginas/analisador.py", title="Analisador (IA)", icon="🤖"),
     ],
     "Sobre o projeto": [
         st.Page("paginas/dados.py", title="Dados e método", icon="🗂️"),

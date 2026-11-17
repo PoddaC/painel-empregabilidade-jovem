@@ -1,9 +1,23 @@
 # Data Summary Report — Painel de Empregabilidade Jovem
 
-> Versão da Etapa 5–6 (TP3). Mapeia de onde vêm os dados, em que formato chegam
+> Versão do TP4 (Etapas 7–8). Mapeia de onde vêm os dados, em que formato chegam
 > e para que cada um serve dentro do painel.
 
-O que mudou nesta etapa, em relação ao TP2:
+O que mudou no TP4:
+
+1. O texto integral das notícias passou a ser **lido por um modelo de
+   linguagem local**, que devolve uma análise estruturada (seção "Dados do
+   analisador").
+2. Entrou um **banco de provas rotulado à mão**: 42 notícias reais, usadas
+   para medir e escolher o modelo.
+3. O painel deixou de ler o CSV direto: **pede os dados à API**, que passou a
+   ser a única leitora e gravadora do acervo para os outros. A leitura direta
+   do disco virou plano B declarado.
+4. As notícias recebidas pela API saíram do repositório (`.gitignore`): é
+   conteúdo enviado por pessoas e programas, que não vai para repositório
+   público.
+
+O que mudou no TP3, em relação ao TP2:
 
 1. A Fonte 1 deixou de ser só a **manchete** e passou a incluir a **linha fina e
    o texto integral** de cada matéria — mudança que viabiliza o uso de LLMs na
@@ -82,7 +96,7 @@ coletadas na tela.
 - **Uso no painel:** complementa a tabela, a nuvem e as estatísticas. Na
   aplicação multipáginas, essa entrada vive na página "Dados e método".
 
-## Fonte 3 (nova nesta etapa): notícias recebidas pela API
+## Fonte 3 (TP3): notícias recebidas pela API
 
 A API do projeto (`api/main.py`) expõe uma rota `POST /noticias` que recebe uma
 notícia em JSON enviada por **outro programa**. É a contrapartida programática do
@@ -95,9 +109,58 @@ upload: o mesmo tipo de dado, entrando sem que ninguém precise abrir uma tela.
   motivo. Duplicatas (mesma URL já presente no acervo) são recusadas com 409.
 - **Onde fica:** `data/processed/noticias_via_api.csv`, **separado** das
   coletadas, com o carimbo de hora do recebimento. Procedência não se mistura: no
-  acervo, essas linhas aparecem com origem `via_api`.
+  acervo, essas linhas aparecem com origem `via_api`. O arquivo está no
+  `.gitignore`: o que pessoas e programas enviam não vai para o repositório.
+- **Quem envia (TP4):** além de outros programas, a própria página "Dados e
+  método" tem um formulário que envia pela API. O painel só diz "gravada"
+  quando a API responde 201; um 409 vira aviso, um 422 vira a lista do que
+  corrigir.
 - **Princípio:** dado que vem de fora é **entrada não confiável**. A validação
   não é cortesia com o usuário, é defesa do acervo.
+
+## Dados do analisador (novos no TP4)
+
+### O modelo de linguagem — HuggingFace Hub
+O modelo (`Qwen/Qwen2.5-1.5B-Instruct`) é um artefato externo, como uma
+fonte: tem procedência e licença, e é baixado uma vez.
+
+- **Como chega:** arquivos de pesos (`safetensors`), configuração e
+  tokenizador, baixados por `python -m src.baixar_modelo` para o cache local
+  do HuggingFace. Cerca de 3,1 GB. Não vai para o Git.
+- **Licença:** Apache 2.0, sem pedido de acesso. Os critérios da escolha
+  estão em `docs/escolha_do_modelo.md`.
+- **Depois do download:** a API carrega com `local_files_only=True`, sem
+  tocar a internet.
+
+### O banco de provas — `data/analisador/banco_de_provas.csv`
+- **O que é:** as 42 notícias do acervo, cada uma com o rótulo esperado nas
+  duas tarefas (`tendencia`, `setor`) e uma `observacao` nos casos difíceis.
+- **Como foi feito:** rotulado à mão, **antes** de rodar qualquer modelo,
+  seguindo as definições de `src/tarefas.py`. O texto não é copiado: o banco
+  guarda o `id` da notícia e a bancada monta o texto a partir do acervo, do
+  mesmo jeito que o painel.
+- **Distribuição:** tendência com 26 otimistas, 12 neutras e 4 pessimistas;
+  setor com 31 "mercado em geral" e 11 notícias espalhadas por cinco setores.
+  É o retrato do acervo, que cobre um período de mercado de trabalho
+  aquecido, e é por isso que a linha de base "sempre a mais comum" entra na
+  comparação.
+- **Limites:** 42 itens (um acerto vale 2,4 pontos); rótulos de uma pessoa só.
+
+### As previsões da bancada — `data/analisador/bancada_previsoes.csv`
+Cada resposta de cada candidato a cada notícia (esperado, previsto,
+confiança, segundos). Gerado por `python -m src.bancada`, junto com
+`docs/bancada_resultados.md`.
+
+### As análises — `POST /processar_texto`
+- **Entrada (JSON):** `texto` (15 a 20.000 caracteres) e `tipo_analise`
+  (`tendencia` ou `setor`). Campo a mais é recusado (422).
+- **Saída (JSON, contrato `ResultadoAnalise`):** a categoria (sempre uma da
+  lista da tarefa), o rótulo, a confiança, todas as alternativas com
+  probabilidade, o **trecho que o modelo leu** (os primeiros ~1.500
+  caracteres), quem analisou e quanto levou.
+- **Não são gravadas.** A análise é refeita a cada pedido. Como a pontuação
+  não sorteia nada, o mesmo texto no mesmo modelo e dispositivo dá a mesma
+  categoria.
 
 ## Fonte 4 (amostra; coleta futura): ocupação por setor — PNAD Contínua / IBGE
 
@@ -158,16 +221,18 @@ raspagem, com uma porta melhor disponível um degrau abaixo.
 
 ## Sobre os formatos dos dados
 
-O projeto lida com quatro formatos de entrada, e sempre faz o mesmo movimento em
+O projeto lida com estes formatos de entrada, e sempre faz o mesmo movimento em
 direção a uma tabela limpa que a interface e a API consomem:
 
 | Formato | Origem | Destino |
 |---|---|---|
 | **HTML** (não-estruturado) | raspagem das notícias | CSV + arquivos de texto |
 | **CSV** (estruturado) | upload do usuário | usado direto, após validação |
-| **JSON** (estruturado) | `POST` na API do projeto | CSV separado, após validação |
+| **JSON** (estruturado) | `POST /noticias` na API do projeto | CSV separado, após validação |
+| **JSON** (estruturado) | `POST /processar_texto` | análise estruturada (não gravada) |
+| **CSV** rotulado à mão | banco de provas | métricas da bancada (CSV + Markdown) |
 | **JSON** (semi-estruturado) | API do IBGE | tabela estruturada (uso futuro) |
 
-É esse caminho **bruto → estruturado** que organiza toda a parte de dados. E o
-destino é sempre o mesmo lugar: `data/processed/`, de onde tanto a aplicação
-quanto a API leem, lado a lado.
+É esse caminho **bruto → estruturado** que organiza toda a parte de dados. O
+destino é sempre `data/processed/`. Quem lê e grava ali para os outros é a
+API; o painel pede a ela, e só lê o disco direto quando ela não responde.

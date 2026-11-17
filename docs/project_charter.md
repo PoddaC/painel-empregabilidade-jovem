@@ -34,9 +34,15 @@ em busca do primeiro emprego?
   no contexto do momento.
 - **Acesso programático:** 100% do acervo exibido no painel disponível
   também por endpoint documentado, consultável sem passar pela interface.
-  - **Prontidão para LLM :** todas as notícias coletadas possuem texto integral armazenado,
-   e não apenas manchete 
-  
+- **Prontidão para LLM:** todas as notícias coletadas possuem texto integral
+  armazenado, e não apenas manchete.
+- **Análise por IA (TP4):** o modelo de linguagem local supera as duas linhas
+  de base (sempre a categoria mais comum; palavras-chave) no banco de provas
+  de 42 notícias rotuladas, e responde em até ~2 s por análise na GPU da
+  máquina do projeto. Medição em `docs/bancada_resultados.md`.
+- **Funcionamento offline:** depois de um único download do modelo, a análise
+  roda sem conexão com a internet.
+
 ## 4. ODS Atendido
 **ODS 8 — Trabalho Decente e Crescimento Econômico**, com foco na **meta 8.6**
 (reduzir a proporção de jovens sem emprego, educação ou formação — os "nem-nem").
@@ -60,8 +66,13 @@ Detalhamento completo em `docs/data_summary_report.md`.
 - **Notícias de emprego** — Agência Brasil / EBC (raspagem de HTML → CSV +
   arquivos de texto). Agora com linha fina e **texto integral** de cada matéria.
 - **Upload do usuário** — CSV enviado na aplicação, válido para a sessão.
-- **Notícias recebidas pela API (novo)** — JSON enviado por outro programa via
-  `POST /noticias`, validado e gravado separadamente das coletadas.
+- **Notícias recebidas pela API** — JSON enviado por outro programa (ou pela
+  página "Dados e método") via `POST /noticias`, validado e gravado
+  separadamente das coletadas.
+- **Análises do modelo de linguagem (novo, TP4)** — dado *derivado*: a
+  tendência e o setor que o modelo local atribui a um texto, devolvidos por
+  `POST /processar_texto`. Não são gravados; cada resposta diz qual modelo
+  analisou.
 - **Ocupação por setor** — IBGE / PNAD Contínua (amostra; API prevista).
 
 ## 7. Riscos e Mitigações
@@ -78,64 +89,83 @@ Detalhamento completo em `docs/data_summary_report.md`.
   O corpo do `POST` é validado por tipo antes de qualquer processamento
   (tamanho do título, formato do ano-mês), duplicatas são recusadas, e o que
   entra é gravado em arquivo separado, preservando a procedência.
-- **API fora do ar :** não derruba o painel. A API e a aplicação são
-  **irmãs**, não camadas: as duas leem a mesma pasta `data/processed/`. Nenhuma
-  depende da outra estar de pé.
+- **API fora do ar:** não derruba o painel. O painel pede os dados à API e,
+  se ela não responder, lê o disco direto e **avisa na barra lateral**; só o
+  Analisador fica indisponível. No Streamlit Cloud, onde não há API, é esse o
+  modo em que o painel roda.
 - **Fonte de vagas inacessível:** a via de acesso ao Novo CAGED foi
   investigada nesta etapa. O painel oficial é um relatório Power BI publicado na
   web, cujos números não existem no HTML em momento algum — inviável por
   raspagem, mesmo com navegador automatizado. A via viável são os microdados por
   FTP, de custo alto (arquivos de milhões de linhas, exigindo agregação prévia).
   Decisão: manter fora do escopo desta etapa, com o caminho documentado.
-- **Ambiguidade dos modelos de LLM (futuro):** resultados de
-  resumo e classificação de sentimento não são determinísticos. Mitigação
-  prevista: sempre exibir o texto-fonte ao lado da saída do modelo, para que o
-  usuário possa conferir.
-- **Dado desatualizado:** a fonte e o período são exibidos na tela.
+- **O modelo erra — às vezes com confiança alta:** medido na bancada. A
+  página do Analisador mostra o trecho que o modelo leu, todas as
+  alternativas com suas probabilidades, e avisa que a confiança **não** é a
+  chance de acerto. A decisão continua sendo de quem lê.
+- **O modelo não carrega** (não baixado, memória insuficiente, biblioteca
+  faltando): a API sobe do mesmo jeito; `POST /processar_texto` responde 503
+  com o motivo, e as rotas de notícias seguem funcionando.
+- **Máquina lenta para o modelo:** cada análise tem limite de tempo (504 com
+  explicação), e há um plano B medido que não exige GPU nem modelo: o motor
+  de regras (`PAINEL_MOTOR=regras`), que empatou com o modelo em tendência.
+- **Licença e acesso do modelo:** só entraram na disputa modelos de licença
+  aberta (Apache 2.0 / MIT) e sem pedido de acesso, para que a ONG possa
+  usar e reinstalar sem depender de terceiros.
 
-## 8. Arquitetura (nova seção)
-O projeto tem **três camadas que não se bloqueiam**:
- 
-1. **Coleta** (`src/`) — roda à parte, no terminal, nunca dentro do app.
-   Grava em `data/raw/` (snapshot bruto, prova do que a página dizia) e em
-   `data/processed/` (tabela limpa). Se a raspagem quebrar, o produto continua
-   de pé com o último dado coletado.
-2. **Dados** (`data/processed/`) — o ponto de encontro. Tudo que consome dados
-   lê daqui.
-3. **Consumo** — dois consumidores independentes da mesma pasta:
-   - a **aplicação** (`app.py` + `paginas/` + `comum.py`), para pessoas;
-   - a **API** (`api/main.py`), para programas.
-A decisão de deixar app e API lado a lado, em vez de empilhar o app sobre a API,
-é deliberada: evita que uma indisponibilidade da API derrube a interface, e
-mantém o deploy da aplicação inalterado.
- 
-**Ambientes separados:** `requirements.txt` declara o que a aplicação publicada
-importa; `requirements-coleta.txt` e `requirements-api.txt` acrescentam o que é
-específico de cada processo. O que se importa, se declara — no arquivo do
-ambiente que importa.
+## 8. Arquitetura (revista no TP4)
+O projeto tem **quatro peças, com um dono para cada escrita**:
 
-## 9. Preparação para Inteligência Artificial com LLMs (nova seção)
-Até o TP2, cada notícia era título, editoria, ano-mês e link. Manchete tem cerca
-de oito palavras: não há o que resumir, o sentimento classificado seria raso e
-não existe conteúdo sobre o qual responder perguntas. Nenhuma das tarefas
-previstas se sustentava sobre esse dado.
+1. **Coleta** (`src/coletar*.py`) — roda à parte, no terminal, nunca dentro
+   do app. Grava em `data/raw/` (snapshot bruto) e em `data/processed/`
+   (tabela limpa e textos). Se a raspagem quebrar, o produto segue com o
+   último dado coletado.
+2. **API** (`api/`) — a **única** que lê e grava o acervo para os outros:
+   serve as notícias, recebe as enviadas (validando) e hospeda o **modelo de
+   linguagem**, carregado uma vez quando ela sobe.
+3. **Painel** (`app.py` + `paginas/` + `comum.py`) — **cliente da API**: pede
+   as notícias e as análises por HTTP (`src/cliente_api.py`), como qualquer
+   outro programa, e lê cada resposta pelo status. Se a API não responder,
+   lê o disco direto e avisa.
+4. **Modelo** (`src/analisador_llm.py`) — mora no disco (baixado por
+   `src/baixar_modelo.py`) e só é acessado pela API.
 
-Nesta etapa passou-se a coletar a **linha fina e o texto integral** de cada
-matéria (detalhamento em `docs/data_summary_report.md`), o que habilita **quatro
-tarefas** na etapa seguinte:
+**O que mudou em relação ao TP3:** no TP3, app e API eram "irmãs" lendo a
+mesma pasta, e o painel não consumia a própria API. A revisão do TP3 apontou
+justamente isso. Agora o painel é o primeiro cliente da API, e o plano B de
+leitura do disco é exceção declarada, não arquitetura.
 
-1. **Resumo automático** — condensar as matérias de um período ou editoria num
-   panorama curto para a coordenação da ONG, substituindo a leitura de dezenas
-   de textos.
-2. **Classificação de sentimento** — rotular cada matéria entre otimista,
-   pessimista ou neutra quanto ao mercado de trabalho e cruzar com a série
-   temporal já existente (`ano_mes`), produzindo uma leitura de clima ao longo
-   do tempo que nenhuma das fontes quantitativas oferece.
-3. **Perguntas e respostas** — responder consultas diretas sobre o acervo ("o
-   que as notícias dizem sobre o primeiro emprego neste semestre?"), usando os
-   textos como base e citando a matéria de origem.
-4. **Geração de texto** — redigir automaticamente a leitura de cenário que hoje
-   o usuário precisa fazer de cabeça, a partir das estatísticas e das notícias.
+**Por que o modelo mora na API, e não no painel:** o peso (gigabytes de
+memória, segundos de carga) fica num processo só, carregado uma vez; o painel
+publicado no Streamlit Cloud segue leve, sem `torch`; e outros programas da
+ONG podem pedir a mesma análise sem abrir tela nenhuma.
+
+**Ambientes separados:** `requirements.txt` declara o que o painel importa;
+`requirements-coleta.txt`, `requirements-api.txt` e `requirements-dev.txt`
+acrescentam o que é específico de cada processo.
+
+## 9. Inteligência Artificial com LLM (TP4)
+O texto integral coletado no TP3 virou a entrada de um **modelo de linguagem
+local**, exposto pela rota `POST /processar_texto` e usado pela página
+**Analisador (IA)**.
+
+**A tarefa escolhida é classificação, em duas perguntas:** a *tendência* que
+a notícia aponta para o emprego (otimista, pessimista, neutra) e o *setor da
+economia* de que ela fala. É a tarefa que serve diretamente à pergunta do
+projeto: cruzadas, as duas respostas indicam quais setores aparecem com
+notícias de expansão. Das quatro aplicações levantadas no TP3, a
+classificação de sentimento foi a implementada. Resumo, perguntas e
+respostas e geração de texto ficam para a etapa final.
+
+**O modelo** foi escolhido por medição, não por fama: quatro candidatos e duas
+linhas de base rodaram sobre um banco de provas de 42 notícias reais,
+rotuladas à mão antes da medição. Critérios, números e decisão estão em
+`docs/escolha_do_modelo.md`.
+
+**Garantias da integração:** a categoria devolvida é sempre uma da lista (o
+modelo pontua as opções em vez de escrever); a resposta tem contrato
+(`ResultadoAnalise`); e cada falha tem seu status — 422 (texto inválido), 503
+(modelo não carregado), 504 (tempo esgotado), 500 com código (imprevisto).
 
 ## 10. Metodologia
 Projeto conduzido segundo o **TDSP** (Team Data Science Process), tendo o
@@ -143,5 +173,7 @@ Projeto conduzido segundo o **TDSP** (Team Data Science Process), tendo o
 reflete a organização em fases do processo. O caráter iterativo aparece na
 evolução do próprio produto: v1 com amostra manual (TP1) → v2 com raspagem,
 cache e upload (TP2) → v3 multipáginas, com texto integral e API própria (TP3)
-→ v4 com recursos de IA via LLM. Documento vivo, revisado ao fim de cada etapa.
+→ v4 com modelo de linguagem local, API com contratos de resposta e
+tratamento de erros, e o painel como cliente da API (TP4) → v5 com a
+aplicação completa (TP5). Documento vivo, revisado ao fim de cada etapa.
 

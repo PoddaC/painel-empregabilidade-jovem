@@ -8,7 +8,8 @@ import io
 
 import streamlit as st
 
-from comum import CAMPOS, obter_todas, guarda_sem_dados
+from comum import CAMPOS, obter_noticias_coletadas, obter_todas, guarda_sem_dados
+from src import cliente_api
 
 
 def ler_csv_upload(arquivo):
@@ -86,6 +87,42 @@ if st.session_state.enviadas:
 st.divider()
 
 # -------------------------------------------------------------------
+# ENVIO PELA API - diferente do upload: a noticia fica GRAVADA no acervo
+# (data/processed/noticias_via_api.csv). O painel pede; quem valida e
+# grava e a API. O painel so diz "gravada" quando a API disser.
+# -------------------------------------------------------------------
+st.header("Enviar uma notícia ao acervo")
+st.caption(
+    "Diferente do upload acima, que vale só para esta sessão: a notícia "
+    "enviada aqui é validada e gravada pela API, e passa a aparecer para "
+    "todos, com origem 'via_api'."
+)
+
+with st.form("enviar_noticia", clear_on_submit=False):
+    titulo = st.text_input("Título (mínimo 10 caracteres)")
+    c1, c2 = st.columns(2)
+    editoria = c1.text_input("Editoria", placeholder="economia")
+    ano_mes = c2.text_input("Ano-mês", placeholder="2026-11")
+    url = st.text_input("Endereço da matéria", placeholder="https://...")
+    enviar = st.form_submit_button("Enviar pela API")
+
+if enviar:
+    try:
+        r = cliente_api.enviar_noticia(titulo, editoria, ano_mes, url)
+        st.success(f"Gravada no acervo: {r['noticia']['titulo']} (id {r['noticia']['id']}).")
+        obter_noticias_coletadas.clear()  # o cache volta a pedir a API: a nova aparece
+    except cliente_api.FalhaDaAPI as f:
+        mensagem = "\n".join(f"- {m}" for m in f.mensagens)
+        if f.e_aviso:
+            st.warning(mensagem)   # 409: ja esta la - nada a corrigir, nada a repetir
+        else:
+            st.error(mensagem)     # 422: corrija o que a API apontou
+    except cliente_api.APIForaDoAr as e:
+        st.warning(f"{e} Nada foi enviado. Ligue a API com `uvicorn api.main:app`.")
+
+st.divider()
+
+# -------------------------------------------------------------------
 # AMOSTRA DO IBGE (TP1) - contexto do projeto, fora do scraping
 # -------------------------------------------------------------------
 st.header("Ocupação por setor (amostra IBGE)")
@@ -101,7 +138,7 @@ amostra_setores = [
     {"setor": "Industria geral", "ocupados_milhoes": 13.3, "variacao_ano_pct": 2.3},
     {"setor": "Servicos domesticos", "ocupados_milhoes": 5.7, "variacao_ano_pct": -4.1},
 ]
-st.dataframe(amostra_setores, use_container_width=True)
+st.dataframe(amostra_setores, width="stretch")
 
 st.divider()
 st.caption(f"Fonte das noticias: {fonte}")

@@ -56,7 +56,7 @@ if contagem:
         nuvem = WordCloud(
             width=800, height=400, background_color="white", colormap="viridis",
         ).generate_from_frequencies(contagem)
-        st.image(nuvem.to_array(), use_container_width=True)
+        st.image(nuvem.to_array(), width="stretch")
 
     with col_b:
         st.subheader("Palavras mais frequentes")

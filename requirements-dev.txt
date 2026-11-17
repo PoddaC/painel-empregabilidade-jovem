@@ -1,0 +1,4 @@
+# Para rodar os testes (pytest). Inclui o ambiente da API.
+-r requirements-api.txt
+pytest
+httpx

@@ -32,7 +32,11 @@ st.caption(f"Mostrando {len(filtradas)} de {len(todas)} noticias.")
 if not filtradas:
     st.info("Nenhuma noticia bate com esse filtro. Tente outro termo ou editoria.")
 else:
-    st.dataframe(filtradas, use_container_width=True)
+    st.dataframe(
+        filtradas,
+        width="stretch",
+        column_order=["titulo", "editoria", "ano_mes", "origem", "resumo", "url"],
+    )
 
     # Baixa o RECORTE, nao a base inteira: o usuario leva o que esta vendo.
     st.download_button(

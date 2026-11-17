@@ -1,5 +1,7 @@
+# O que o PAINEL importa - e o que o Streamlit Cloud instala.
+# requests: o painel pede os dados e as analises a API (src/cliente_api.py).
+# Sem torch nem transformers aqui: o modelo mora na API, nao no painel.
 streamlit
 requests
-beautifulsoup4
 wordcloud
 simplemma

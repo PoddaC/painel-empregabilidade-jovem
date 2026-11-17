@@ -47,6 +47,7 @@ st.subheader("Por onde comecar")
 # como um indice das outras.
 st.page_link("paginas/noticias.py", label="Notícias — a tabela, filtrada e baixavel", icon="📰")
 st.page_link("paginas/analise.py", label="Análise — o que essas noticias mais falam", icon="📊")
+st.page_link("paginas/analisador.py", label="Analisador (IA) — o modelo local lê a notícia: tendência e setor", icon="🤖")
 st.page_link("paginas/dados.py", label="Dados e método — fontes, upload e limites", icon="🗂️")
 
 st.divider()
