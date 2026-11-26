@@ -24,3 +24,9 @@ data/processed/noticias_via_api.csv
 # Se voce apontar HF_HOME para dentro do projeto, ignore a pasta:
 modelos/
 .pytest_cache/
+
+# O diario da API (api/registro.py). As evidencias escolhidas vao para docs/evidencias/.
+logs/
+
+# As conversas da pagina Conversa: dado pessoal (o que alguem perguntou). Moram so na maquina da API.
+data/conversas/

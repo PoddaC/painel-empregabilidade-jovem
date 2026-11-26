@@ -1,0 +1,137 @@
+# Evidência: gpu
+
+Gravada em 25/11/2026 19:07:21 por `python -m src.evidencias`, contra a API em `http://127.0.0.1:8000`.
+
+Notícia usada (real, do acervo): **Cai diferença entre homens e mulheres no acesso ao emprego formal**
+
+| Chamada | Status | Segundos (cliente) | Resultado |
+|---|---|---|---|
+| `GET /saude`  | 200 | 0.008 | modelo carregado: True · Qwen/Qwen2.5-1.5B-Instruct · float16 · cuda |
+| `POST /processar_texto` tendencia | 200 | 1.916 | Otimista · confiança 0.98 · Qwen/Qwen2.5-1.5B-Instruct · float16 · cuda · 1.909 s no modelo |
+| `POST /processar_texto` setor | 200 | 0.104 | Mercado em geral · confiança 0.62 · Qwen/Qwen2.5-1.5B-Instruct · float16 · cuda · 0.096 s no modelo |
+
+## Linhas do log da API (`logs/api.jsonl`) desta rodada
+
+```json
+{"quando": "2026-11-25T19:07:19.677", "metodo": "GET", "rota": "/saude", "status": 200, "segundos": 0.001}
+{"quando": "2026-11-25T19:07:19.690", "metodo": "GET", "rota": "/noticias", "status": 200, "segundos": 0.01}
+{"quando": "2026-11-25T19:07:19.698", "metodo": "GET", "rota": "/noticias/2026-08_cai-diferenca-entre-homens-e-mulheres-no-acesso-ao-emprego-f", "status": 200, "segundos": 0.004}
+{"quando": "2026-11-25T19:07:21.614", "metodo": "POST", "rota": "/processar_texto", "status": 200, "segundos": 1.911, "tipo_analise": "tendencia", "caracteres": 3072, "motor": "Qwen/Qwen2.5-1.5B-Instruct · float16 · cuda", "categoria": "otimista", "confianca": 0.981, "segundos_modelo": 1.909}
+{"quando": "2026-11-25T19:07:21.718", "metodo": "POST", "rota": "/processar_texto", "status": 200, "segundos": 0.098, "tipo_analise": "setor", "caracteres": 3072, "motor": "Qwen/Qwen2.5-1.5B-Instruct · float16 · cuda", "categoria": "geral", "confianca": 0.623, "segundos_modelo": 0.096}
+```
+
+## Respostas completas
+
+```json
+[
+  {
+    "metodo": "GET",
+    "rota": "/saude",
+    "pedido": null,
+    "status": 200,
+    "segundos_no_cliente": 0.008,
+    "resposta": {
+      "ok": true,
+      "modelo_carregado": true,
+      "motor": "Qwen/Qwen2.5-1.5B-Instruct · float16 · cuda",
+      "motivo": null
+    }
+  },
+  {
+    "metodo": "POST",
+    "rota": "/processar_texto",
+    "pedido": {
+      "texto": "<3072 caracteres>",
+      "tipo_analise": "tendencia"
+    },
+    "status": 200,
+    "segundos_no_cliente": 1.916,
+    "resposta": {
+      "tipo_analise": "tendencia",
+      "trecho_analisado": "Cai diferença entre homens e mulheres no acesso ao emprego formal Mulheres ocupam 46,4% dos postos de trabalho, somando 29.182.235 de vínculos trabalhistas. Os homens estão registrados em 33.708.974 vagas, 53,6% dos postos de trabalho. Do total de 62,8 milhões de empregos formais ativos no Brasil, incluindo trabalhadores com carteira assinada e agentes públicos, as mulheres ainda não representam a maioria , mas a diferença em relação aos homens caiu nos últimos anos. É o que mostram dados da Rais Mensal de junho, divulgados nesta quinta-feira (13) pelo Ministério do Trabalho e Emprego (MTE). A Relação Anual de Informações Sociais (Rais) reúne estatísticas sobre o mercado de trabalho a partir de informações coletadas de empresas e órgãos públicos. Ao todo, as mulheres ocupam 46,4% dos postos de trabalho, somando 29.182.235 de vínculos trabalhistas. Os homens estão registrados em 33.708.974 vagas, 53,6% dos postos de trabalho. Essa distância era maior em janeiro de 2023, quando 55,7% das vagas eram ocupadas por pessoas do sexo masculino, contra 44,2% do sexo feminino. O mercado de trabalho brasileiro acumulou saldo positivo de 10,1 milhões de vínculos de emprego formal, entre janeiro de 2023 e junho de 2026, segundo o balanço apresentado pelo MTE. Desse montante, 5,8 milhões das vagas formais foram ocupadas por mulheres, enquanto 4,3 milhões foram ocupadas por homens. A Rais Mensal também trouxe informações atualizadas sobre a diversidade racial no mercado de trabalho [...]",
+      "caracteres_recebidos": 3072,
+      "categoria": "otimista",
+      "rotulo": "Otimista",
+      "confianca": 0.9807,
+      "alternativas": [
+        {
+          "categoria": "otimista",
+          "rotulo": "Otimista",
+          "probabilidade": 0.9807
+        },
+        {
+          "categoria": "pessimista",
+          "rotulo": "Pessimista",
+          "probabilidade": 0.0188
+        },
+        {
+          "categoria": "neutra",
+          "rotulo": "Neutra",
+          "probabilidade": 0.0005
+        }
+      ],
+      "pistas": [],
+      "motor": "Qwen/Qwen2.5-1.5B-Instruct · float16 · cuda",
+      "segundos": 1.909
+    }
+  },
+  {
+    "metodo": "POST",
+    "rota": "/processar_texto",
+    "pedido": {
+      "texto": "<3072 caracteres>",
+      "tipo_analise": "setor"
+    },
+    "status": 200,
+    "segundos_no_cliente": 0.104,
+    "resposta": {
+      "tipo_analise": "setor",
+      "trecho_analisado": "Cai diferença entre homens e mulheres no acesso ao emprego formal Mulheres ocupam 46,4% dos postos de trabalho, somando 29.182.235 de vínculos trabalhistas. Os homens estão registrados em 33.708.974 vagas, 53,6% dos postos de trabalho. Do total de 62,8 milhões de empregos formais ativos no Brasil, incluindo trabalhadores com carteira assinada e agentes públicos, as mulheres ainda não representam a maioria , mas a diferença em relação aos homens caiu nos últimos anos. É o que mostram dados da Rais Mensal de junho, divulgados nesta quinta-feira (13) pelo Ministério do Trabalho e Emprego (MTE). A Relação Anual de Informações Sociais (Rais) reúne estatísticas sobre o mercado de trabalho a partir de informações coletadas de empresas e órgãos públicos. Ao todo, as mulheres ocupam 46,4% dos postos de trabalho, somando 29.182.235 de vínculos trabalhistas. Os homens estão registrados em 33.708.974 vagas, 53,6% dos postos de trabalho. Essa distância era maior em janeiro de 2023, quando 55,7% das vagas eram ocupadas por pessoas do sexo masculino, contra 44,2% do sexo feminino. O mercado de trabalho brasileiro acumulou saldo positivo de 10,1 milhões de vínculos de emprego formal, entre janeiro de 2023 e junho de 2026, segundo o balanço apresentado pelo MTE. Desse montante, 5,8 milhões das vagas formais foram ocupadas por mulheres, enquanto 4,3 milhões foram ocupadas por homens. A Rais Mensal também trouxe informações atualizadas sobre a diversidade racial no mercado de trabalho [...]",
+      "caracteres_recebidos": 3072,
+      "categoria": "geral",
+      "rotulo": "Mercado em geral",
+      "confianca": 0.6229,
+      "alternativas": [
+        {
+          "categoria": "geral",
+          "rotulo": "Mercado em geral",
+          "probabilidade": 0.6229
+        },
+        {
+          "categoria": "servicos",
+          "rotulo": "Serviços",
+          "probabilidade": 0.2119
+        },
+        {
+          "categoria": "comercio",
+          "rotulo": "Comércio",
+          "probabilidade": 0.0926
+        },
+        {
+          "categoria": "agropecuaria",
+          "rotulo": "Agropecuária",
+          "probabilidade": 0.0363
+        },
+        {
+          "categoria": "setor_publico",
+          "rotulo": "Setor público",
+          "probabilidade": 0.0249
+        },
+        {
+          "categoria": "construcao",
+          "rotulo": "Construção",
+          "probabilidade": 0.0067
+        },
+        {
+          "categoria": "industria",
+          "rotulo": "Indústria",
+          "probabilidade": 0.0047
+        }
+      ],
+      "pistas": [],
+      "motor": "Qwen/Qwen2.5-1.5B-Instruct · float16 · cuda",
+      "segundos": 0.096
+    }
+  }
+]
+```

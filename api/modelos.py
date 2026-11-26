@@ -151,9 +151,80 @@ class Saude(BaseModel):
     modelo_carregado: bool
     motor: str | None = Field(description="O motor carregado, se houver.")
     motivo: str | None = Field(default=None, description="Por que o modelo nao carregou.")
+    assistente: list[str] = Field(
+        default=[], description="Provedores online com chave para a Conversa, na ordem de uso (vazio = sem assistente).")
 
 
 class Raiz(BaseModel):
     projeto: str
     ods: str
     rotas: list[str]
+
+
+# -------------------------------------------------------------------
+# CONVERSA - o contrato do POST /conversa (TP5, memoria conversacional)
+# -------------------------------------------------------------------
+Memoria = Literal["inteira", "janela", "resumo", "notas"]
+
+
+class PedidoConversa(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        json_schema_extra={"examples": [
+            {"pergunta": "Como está a desocupação dos jovens de 18 a 24 anos na Bahia?"},
+            {"pergunta": "E em São Paulo?", "conversa_id": "0123456789abcdef0123456789abcdef"},
+        ]},
+    )
+
+    pergunta: str = Field(min_length=2, max_length=1000, description="A pergunta da pessoa.")
+    conversa_id: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{32}$",
+        description="Para continuar uma conversa. Sem ele, a API abre uma nova e devolve o id.",
+    )
+    memoria: Memoria = Field(
+        default="notas",
+        description="O que o modelo le da conversa: inteira, janela, resumo ou notas (padrao).",
+    )
+
+
+class Leitura(BaseModel):
+    memoria: Memoria
+    mensagens_enviadas: int = Field(description="Quantas mensagens o modelo leu (com a pergunta).")
+    mensagens_na_conversa: int = Field(description="Quantas a conversa tem (com a pergunta).")
+    lugares_em_foco: list[str] = Field(description="Os lugares cujos fatos entraram.")
+    notas: str | None = Field(description="Notas ou resumo que acompanharam as mensagens.")
+    fatos: str = Field(description="Os fatos calculados pelo painel que o modelo leu.")
+
+
+class RespostaConversa(BaseModel):
+    conversa_id: str
+    resposta: str
+    provedor: str = Field(description="Quem respondeu: groq ou gemini.")
+    modelo: str
+    segundos: float = Field(description="Tempo da chamada ao modelo (sem o resumo).")
+    tokens_entrada: int | None
+    tokens_saida: int | None
+    chamada_de_resumo: bool = Field(description="Se esta pergunta pagou uma chamada a mais (memoria de resumo).")
+    numeros_sem_fonte: list[str] = Field(
+        description="Numeros da resposta que NAO estao nos fatos. Vazio = tudo conferido.")
+    falhas_antes: dict[str, str] = Field(description="Provedores que falharam antes deste, e por que.")
+    leitura: Leitura = Field(description="O que o modelo leu para responder.")
+
+
+class Mensagem(BaseModel):
+    papel: Literal["user", "assistant"]
+    texto: str
+    quando: str
+    provedor: str | None = None
+    numeros_sem_fonte: list[str] | None = None
+
+
+class Conversa(BaseModel):
+    id: str
+    criada_em: str
+    atualizada_em: str
+    memoria: Memoria
+    mensagens: list[Mensagem]
+    notas: dict | None
+    resumo: str

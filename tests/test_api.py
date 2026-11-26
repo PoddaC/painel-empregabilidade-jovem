@@ -37,7 +37,9 @@ def test_toda_rota_tem_modelo_de_resposta(cliente):
     esquema = cliente.get("/openapi.json").json()
     for caminho, metodos in esquema["paths"].items():
         for metodo, op in metodos.items():
-            ok = next(v for k, v in op["responses"].items() if k.startswith("2"))
+            codigo, ok = next((k, v) for k, v in op["responses"].items() if k.startswith("2"))
+            if codigo == "204":  # DELETE: sucesso sem corpo, de proposito
+                continue
             corpo = ok["content"]["application/json"]["schema"]
             assert corpo, f"{metodo.upper()} {caminho} devolve 'string' no /docs"
 
@@ -137,3 +139,37 @@ def test_resposta_fora_do_contrato_e_500_com_codigo(cliente, monkeypatch):
     r = cliente.post("/processar_texto", json={"texto": TEXTO})
     assert r.status_code == 500
     assert "codigo" in r.json()["detail"] and "Traceback" not in r.text
+
+
+# --- o diario da API (logs/api.jsonl) -------------------------------
+def test_log_uma_linha_por_chamada_sem_o_texto(cliente, monkeypatch, tmp_path):
+    """Cada chamada vira uma linha JSON - com tamanho do texto, nunca o texto."""
+    import json
+    arquivo = tmp_path / "api.jsonl"
+    monkeypatch.setenv("PAINEL_LOG", str(arquivo))
+    cliente.post("/processar_texto", json={"texto": TEXTO, "tipo_analise": "tendencia"})
+    cliente.get("/noticias/nao-existe")
+    linhas = [json.loads(l) for l in arquivo.read_text(encoding="utf-8").splitlines()]
+    assert [(l["rota"], l["status"]) for l in linhas] == [
+        ("/processar_texto", 200), ("/noticias/nao-existe", 404)]
+    analise = linhas[0]
+    assert analise["motor"].startswith("regras") and analise["caracteres"] == len(TEXTO)
+    assert analise["tipo_analise"] == "tendencia" and "categoria" in analise
+    assert TEXTO not in arquivo.read_text(encoding="utf-8")
+
+
+def test_log_registra_503_e_500(cliente, monkeypatch, tmp_path):
+    import json
+    arquivo = tmp_path / "api.jsonl"
+    monkeypatch.setenv("PAINEL_LOG", str(arquivo))
+    monkeypatch.delitem(motor.MOTORES, "analise")
+    cliente.post("/processar_texto", json={"texto": TEXTO})
+
+    class Quebra:
+        descricao = "quebra"
+        def analisar(self, texto, tipo):
+            raise RuntimeError("bum")
+    monkeypatch.setitem(motor.MOTORES, "analise", Quebra())
+    cliente.post("/processar_texto", json={"texto": TEXTO})
+    status = [json.loads(l)["status"] for l in arquivo.read_text(encoding="utf-8").splitlines()]
+    assert status == [503, 500]

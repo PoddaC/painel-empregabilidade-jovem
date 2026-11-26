@@ -13,8 +13,10 @@ import unicodedata
 BASE = Path(__file__).resolve().parent.parent
 PROCESSED = BASE / "data" / "processed"
 CSV_NOTICIAS = PROCESSED / "noticias_emprego.csv"
+CSV_IBGE = PROCESSED / "ibge_desocupacao_jovem.csv"
 
 FONTE = "Agencia Brasil / EBC - tag 'emprego' (coleta via scraping)"
+FONTE_IBGE = "IBGE - PNAD Continua trimestral, tabela SIDRA 4094 (coleta via API)"
 
 
 def carregar_noticias():
@@ -62,3 +64,21 @@ def ler_texto(noticia):
     if PROCESSED.resolve() not in caminho.parents or not caminho.exists():
         return ""
     return caminho.read_text(encoding="utf-8")
+
+
+def carregar_ibge():
+    """
+    Devolve (linhas, fonte) da desocupacao por grupo de idade (IBGE).
+
+    Cada linha: periodo, periodo_codigo, nivel, localidade, grupo_idade,
+    taxa_desocupacao_pct (float), tabela, coletado_em. Sem o CSV (a coleta
+    nao rodou), devolve lista vazia e diz na fonte como coletar - o painel
+    NAO mostra numero de exemplo no lugar.
+    """
+    if not CSV_IBGE.exists():
+        return [], FONTE_IBGE + " [ainda nao coletado - rode: python -m src.coletar_ibge]"
+    with CSV_IBGE.open(encoding="utf-8") as f:
+        linhas = list(csv.DictReader(f))
+    for l in linhas:
+        l["taxa_desocupacao_pct"] = float(l["taxa_desocupacao_pct"])
+    return linhas, FONTE_IBGE

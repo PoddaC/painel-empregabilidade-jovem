@@ -153,7 +153,15 @@ escolha abaixo é uma exceção, registrada como tal:
 - **Custo computacional local:** 3,1 GB de download, 2,9 GB de pesos, 3,2 GB de
   pico na GPU (cabe na placa de 8 GB com folga), 6 a 15 s para carregar,
   **0,07 s por análise** na RTX 4060 Ti (0,26 s de ponta a ponta no painel).
-  Na CPU não foi medido.
+  **Na CPU** (float32, 16 núcleos lógicos): **14,4 s por análise**
+  (mediana; p95 16,4 s), 7,3 s para carregar e 7,4 GB de pico de RAM
+  ([`bancada_resultados_cpu.md`](bancada_resultados_cpu.md)); pela API, de
+  ponta a ponta, ~16 s ([`evidencias/cpu.md`](evidencias/cpu.md)). A seção 2
+  só declarou limite de tempo **na GPU**; o número da CPU fica registrado sem
+  mudar o critério depois de medir. Na CPU o modelo acerta o mesmo (29 e 25
+  de 42), mas cada análise leva cerca de 200 vezes o tempo da GPU. Sem GPU,
+  o Analisador continua usável para uma notícia de cada vez, dentro do
+  limite de 60 s da API, mas não para analisar o acervo inteiro de uma vez.
 - **Acessibilidade:** Apache 2.0, sem *gated*, `transformers` + `torch`,
   offline depois de `python -m src.baixar_modelo`.
 

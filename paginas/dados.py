@@ -10,6 +10,7 @@ import streamlit as st
 
 from comum import CAMPOS, obter_noticias_coletadas, obter_todas, guarda_sem_dados
 from src import cliente_api
+from src.data_access import carregar_ibge
 
 
 def ler_csv_upload(arquivo):
@@ -123,22 +124,64 @@ if enviar:
 st.divider()
 
 # -------------------------------------------------------------------
-# AMOSTRA DO IBGE - contexto do projeto, fora do scraping
+# IBGE - desocupacao dos JOVENS, coletada pela API (python -m src.coletar_ibge)
+# Antes (TP2 a TP4) aqui havia uma lista digitada no codigo, com legenda
+# dizendo "via API". Agora: ou o dado coletado, ou um aviso - nunca numero
+# de exemplo passando por dado real.
 # -------------------------------------------------------------------
-st.header("Ocupação por setor (amostra IBGE)")
-st.caption(
-    "Amostra coletada via API do IBGE / PNAD Continua. Nao faz parte "
-    "do scraping; fica aqui pela continuidade do projeto."
-)
+st.header("Desocupação dos jovens (IBGE)")
+ibge, fonte_ibge = carregar_ibge()
 
-amostra_setores = [
-    {"setor": "Comercio, reparacao de veiculos", "ocupados_milhoes": 19.5, "variacao_ano_pct": 0.3},
-    {"setor": "Adm. publica, educacao, saude", "ocupados_milhoes": 19.0, "variacao_ano_pct": 5.0},
-    {"setor": "Informacao, comunicacao, financas", "ocupados_milhoes": 13.4, "variacao_ano_pct": 6.8},
-    {"setor": "Industria geral", "ocupados_milhoes": 13.3, "variacao_ano_pct": 2.3},
-    {"setor": "Servicos domesticos", "ocupados_milhoes": 5.7, "variacao_ano_pct": -4.1},
-]
-st.dataframe(amostra_setores, width="stretch")
+if not ibge:
+    st.warning(
+        "Os dados do IBGE ainda não foram coletados nesta máquina. Rode, a "
+        "partir da raiz do projeto:\n\n```\npython -m src.coletar_ibge\n```"
+    )
+else:
+    brasil = [l for l in ibge if l["nivel"] == "Brasil"]
+    ultimo = max(l["periodo_codigo"] for l in brasil)
+    agora = {l["grupo_idade"]: l for l in brasil if l["periodo_codigo"] == ultimo}
+    periodo = agora["total"]["periodo"]
+
+    st.caption(
+        f"Taxa de desocupação por grupo de idade, Brasil, {periodo}. "
+        "Desocupado é quem procurou trabalho e não achou; quem só estuda "
+        "não entra na conta."
+    )
+    c1, c2, c3 = st.columns(3)
+    for col, grupo, nome in ((c1, "14 a 17 anos", "14 a 17 anos"),
+                             (c2, "18 a 24 anos", "18 a 24 anos"),
+                             (c3, "total", "Todas as idades")):
+        if grupo in agora:
+            col.metric(nome, f"{agora[grupo]['taxa_desocupacao_pct']:.1f}%".replace(".", ","))
+
+    # Serie no tempo: uma linha por grupo, um eixo so (%).
+    serie = {}
+    for l in brasil:
+        nome = "Todas as idades" if l["grupo_idade"] == "total" else l["grupo_idade"]
+        serie.setdefault(l["periodo"], {})[nome] = l["taxa_desocupacao_pct"]
+    st.subheader("Brasil, trimestre a trimestre")
+    st.line_chart(
+        [{"periodo": p, **v} for p, v in sorted(serie.items())],
+        x="periodo", y=["14 a 17 anos", "18 a 24 anos", "Todas as idades"],
+        y_label="taxa de desocupação (%)", x_label="trimestre",
+    )
+
+    ufs = sorted(
+        (l for l in ibge if l["nivel"] == "UF" and l["periodo_codigo"] == ultimo
+         and l["grupo_idade"] == "18 a 24 anos"),
+        key=lambda l: l["taxa_desocupacao_pct"], reverse=True,
+    )
+    if ufs:
+        st.subheader(f"18 a 24 anos, por UF ({periodo})")
+        st.bar_chart(
+            [{"UF": l["localidade"], "taxa (%)": l["taxa_desocupacao_pct"]} for l in ufs],
+            x="UF", y="taxa (%)", horizontal=True, sort="-taxa (%)",
+        )
+
+    with st.expander("Tabela completa (o que o gráfico mostra)"):
+        st.dataframe(ibge, width="stretch", hide_index=True)
+    st.caption(f"Fonte: {fonte_ibge}. Coletado em {ibge[0]['coletado_em']}.")
 
 st.divider()
 st.caption(f"Fonte das noticias: {fonte}")

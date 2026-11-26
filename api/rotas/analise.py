@@ -8,9 +8,11 @@ api/rotas/analise.py - o modelo de linguagem atras de uma rota.
 import time
 from concurrent.futures import TimeoutError as TempoEsgotado
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
 from api import motor
+from src import llm_api
+from api.registro import anotar
 from api.erros import erro
 from api.modelos import PedidoAnalise, ResultadoAnalise, Saude
 from src.tarefas import rotulo
@@ -28,7 +30,7 @@ router = APIRouter(tags=["analise"])
         504: erro("A analise passou do tempo limite."),
     },
 )
-def processar_texto(pedido: PedidoAnalise):
+def processar_texto(pedido: PedidoAnalise, request: Request):
     """
     Recebe um texto e devolve a analise do modelo local, sem internet.
 
@@ -42,6 +44,9 @@ def processar_texto(pedido: PedidoAnalise):
     """
     # def, e nao async def: o calculo do modelo travaria as outras rotas.
     analisador = motor.MOTORES.get("analise")
+    # O log guarda o tamanho do texto, nunca o texto.
+    anotar(request, tipo_analise=pedido.tipo_analise, caracteres=len(pedido.texto),
+           motor=analisador.descricao if analisador else None)
     if analisador is None:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -60,12 +65,14 @@ def processar_texto(pedido: PedidoAnalise):
         raise HTTPException(
             status.HTTP_504_GATEWAY_TIMEOUT,
             detail=(
-                f"A analise passou de {motor.limite_segundos():.0f} s e foi abandonada. "
+                f"A analise passou de {motor.limite_segundos():g} s e foi abandonada. "
                 "O modelo pode estar ocupado com outro pedido ou a maquina esta "
                 "lenta para ele - tente de novo em instantes ou com um texto menor."
             ),
         )
     tipo = pedido.tipo_analise
+    anotar(request, categoria=r["categoria"], confianca=round(r["confianca"], 3),
+           segundos_modelo=round(time.perf_counter() - inicio, 3))
     return {
         "tipo_analise": tipo,
         "trecho_analisado": r["trecho"],
@@ -97,4 +104,5 @@ def saude():
         "modelo_carregado": analisador is not None,
         "motor": analisador.descricao if analisador else None,
         "motivo": None if analisador else motor.ESTADO["motivo"],
+        "assistente": llm_api.configurados(),
     }

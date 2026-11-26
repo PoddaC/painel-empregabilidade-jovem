@@ -1,0 +1,67 @@
+# Evidência: erro_503
+
+Gravada em 25/11/2026 19:08:42 por `python -m src.evidencias`, contra a API em `http://127.0.0.1:8000`.
+
+Notícia usada (real, do acervo): **Cai diferença entre homens e mulheres no acesso ao emprego formal**
+
+| Chamada | Status | Segundos (cliente) | Resultado |
+|---|---|---|---|
+| `GET /saude`  | 200 | 0.021 | modelo carregado: False · o modelo nao foi encontrado nesta maquina. Baixe uma vez, com internet: python -m src.baixar_modelo. |
+| `POST /processar_texto` tendencia | 503 | 0.007 | O analisador esta indisponivel: o modelo nao foi encontrado nesta maquina. Baixe uma vez, com internet: python -m src.baixar_modelo. As outras rotas da API func |
+| `POST /processar_texto` setor | 503 | 0.005 | O analisador esta indisponivel: o modelo nao foi encontrado nesta maquina. Baixe uma vez, com internet: python -m src.baixar_modelo. As outras rotas da API func |
+
+## Linhas do log da API (`logs/api.jsonl`) desta rodada
+
+```json
+{"quando": "2026-11-25T19:08:42.634", "metodo": "GET", "rota": "/saude", "status": 200, "segundos": 0.001}
+{"quando": "2026-11-25T19:08:42.644", "metodo": "GET", "rota": "/noticias", "status": 200, "segundos": 0.003}
+{"quando": "2026-11-25T19:08:42.669", "metodo": "GET", "rota": "/noticias/2026-08_cai-diferenca-entre-homens-e-mulheres-no-acesso-ao-emprego-f", "status": 200, "segundos": 0.006}
+{"quando": "2026-11-25T19:08:42.677", "metodo": "POST", "rota": "/processar_texto", "status": 503, "segundos": 0.002, "tipo_analise": "tendencia", "caracteres": 3072, "motor": null}
+{"quando": "2026-11-25T19:08:42.683", "metodo": "POST", "rota": "/processar_texto", "status": 503, "segundos": 0.001, "tipo_analise": "setor", "caracteres": 3072, "motor": null}
+```
+
+## Respostas completas
+
+```json
+[
+  {
+    "metodo": "GET",
+    "rota": "/saude",
+    "pedido": null,
+    "status": 200,
+    "segundos_no_cliente": 0.021,
+    "resposta": {
+      "ok": true,
+      "modelo_carregado": false,
+      "motor": null,
+      "motivo": "o modelo nao foi encontrado nesta maquina. Baixe uma vez, com internet: python -m src.baixar_modelo."
+    }
+  },
+  {
+    "metodo": "POST",
+    "rota": "/processar_texto",
+    "pedido": {
+      "texto": "<3072 caracteres>",
+      "tipo_analise": "tendencia"
+    },
+    "status": 503,
+    "segundos_no_cliente": 0.007,
+    "resposta": {
+      "detail": "O analisador esta indisponivel: o modelo nao foi encontrado nesta maquina. Baixe uma vez, com internet: python -m src.baixar_modelo. As outras rotas da API funcionam normalmente."
+    }
+  },
+  {
+    "metodo": "POST",
+    "rota": "/processar_texto",
+    "pedido": {
+      "texto": "<3072 caracteres>",
+      "tipo_analise": "setor"
+    },
+    "status": 503,
+    "segundos_no_cliente": 0.005,
+    "resposta": {
+      "detail": "O analisador esta indisponivel: o modelo nao foi encontrado nesta maquina. Baixe uma vez, com internet: python -m src.baixar_modelo. As outras rotas da API funcionam normalmente."
+    }
+  }
+]
+```

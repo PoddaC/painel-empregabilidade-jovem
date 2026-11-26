@@ -45,6 +45,8 @@ st.subheader("Por onde comecar")
 
 # page_link: o mesmo link do menu, dentro da pagina. A Inicio funciona
 # como um indice das outras.
+st.page_link("paginas/ciclo.py", label="Do dado ao insight — o ciclo inteiro, com os números de cada etapa", icon="🔄")
+st.page_link("paginas/conversa.py", label="Conversa (IA) — pergunte sobre os dados, com memória", icon="💬")
 st.page_link("paginas/noticias.py", label="Notícias — a tabela, filtrada e baixavel", icon="📰")
 st.page_link("paginas/analise.py", label="Análise — o que essas noticias mais falam", icon="📊")
 st.page_link("paginas/analisador.py", label="Analisador (IA) — o modelo local lê a notícia: tendência e setor", icon="🤖")

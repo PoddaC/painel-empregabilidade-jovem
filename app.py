@@ -34,9 +34,11 @@ if "uploader_key" not in st.session_state:
 pagina = st.navigation({
     "Painel": [
         st.Page("paginas/inicio.py", title="Início", icon="🏠", default=True),
+        st.Page("paginas/ciclo.py", title="Do dado ao insight", icon="🔄"),
         st.Page("paginas/noticias.py", title="Notícias", icon="📰"),
         st.Page("paginas/analise.py", title="Análise", icon="📊"),
         st.Page("paginas/analisador.py", title="Analisador (IA)", icon="🤖"),
+        st.Page("paginas/conversa.py", title="Conversa (IA)", icon="💬"),
     ],
     "Sobre o projeto": [
         st.Page("paginas/dados.py", title="Dados e método", icon="🗂️"),

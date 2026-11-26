@@ -1,7 +1,20 @@
 # Data Summary Report — Painel de Empregabilidade Jovem
 
-> Versão do TP4 (Etapas 7–8). Mapeia de onde vêm os dados, em que formato chegam
-> e para que cada um serve dentro do painel.
+> Versão final (TP5). Mapeia de onde vêm os dados, em que formato chegam,
+> como são integrados e para que cada um serve, da coleta até a resposta da IA.
+
+O que mudou no TP5:
+
+1. A **Fonte 4 (IBGE)** deixou de ser uma lista digitada no código e passou a
+   ser coletada pela **API do IBGE**, agora com o recorte de **jovens** (14 a
+   17 e 18 a 24 anos).
+2. Entrou a **Fonte 5: a conversa**, que é dado pessoal, com onde mora, quem lê
+   e quem apaga.
+3. Os dados passaram a alimentar um **modelo de linguagem online**: o Python
+   calcula os FATOS a partir das fontes 1 e 4, e o modelo só redige (seção
+   "Como os dados chegam à IA").
+4. A API passou a anotar cada chamada num **log** (`logs/api.jsonl`), e as
+   chamadas reais guardadas como evidência ficam em `docs/evidencias/`.
 
 O que mudou no TP4:
 
@@ -141,17 +154,129 @@ confiança, segundos). Gerado por `python -m src.bancada`, junto com
   confiança, as alternativas, o trecho lido, quem analisou e quanto levou.
 - **Não são gravadas:** a análise é refeita a cada pedido.
 
-## Fonte 4 (amostra; coleta futura): ocupação por setor — PNAD Contínua / IBGE
+## Fonte 4 (implementada no TP5): desocupação dos jovens — PNAD Contínua / IBGE, via API
 
-A fonte quantitativa que originou o projeto é a PNAD Contínua, do IBGE, com o
-número de pessoas ocupadas por grupamento de atividade e sua variação no tempo —
-o indicador que aponta quais setores absorvem trabalhadores.
+**Correção registrada.** Do TP2 ao TP4, a página "Dados e método" mostrava uma
+lista de cinco setores **digitada no código**, com a legenda "amostra coletada
+via API do IBGE". A legenda não era verdadeira, e os números (ocupados por
+setor, todas as idades) nem eram sobre jovens. A lista foi removida. Agora a
+página mostra o dado coletado ou, se a coleta não rodou, um aviso. Nunca um
+número de exemplo no lugar de dado real.
 
-- **Como chega:** JSON (semi-estruturado) pela API pública (servicodados/SIDRA),
-  aberta e sem autenticação. O trabalho técnico é converter esse JSON aninhado
-  numa tabela para comparar os setores.
-- **Status:** exibida como **amostra** de referência na página "Dados e método";
-  a coleta ao vivo via API segue prevista.
+- **O que é:** a taxa de desocupação por grupo de idade, da PNAD Contínua
+  trimestral, tabela SIDRA **4094**. O painel usa três grupos: **14 a 17
+  anos**, **18 a 24 anos** e o **total** (para comparar). Os níveis são
+  Brasil, Grandes Regiões e UFs.
+- **Por que esta tabela:** a meta 8.6 do ODS 8 é sobre jovens. A desocupação
+  por idade é o indicador oficial mais direto disso que está na API, e mostra
+  o tamanho do problema que o painel quer ajudar a atacar: no 3º trimestre
+  de 2026, a desocupação foi de **11,1%** entre 18 e 24 anos e **21,5%**
+  entre 14 e 17, contra **5,2%** no total. É cerca de 2 e 4 vezes a média.
+- **Como chega:** JSON aninhado pela API de agregados do IBGE
+  (`servicodados.ibge.gov.br/api/v3/agregados`), aberta e sem chave. O degrau
+  da escada é o 1, uma API, então não há raspagem nem navegador.
+- **Como é coletado:** `python -m src.coletar_ibge` roda à parte, como a coleta
+  de notícias. Primeiro ele lê os **metadados** da tabela e descobre pelos
+  nomes qual é a variável da taxa, qual é a classificação de idade e quais são
+  os códigos dos grupos jovens. Se o IBGE mudar a tabela, o script para com uma
+  frase dizendo o que não achou, em vez de gravar número errado.
+- **Bruto (prova):** `data/raw/ibge_4094_<data>.json`, com a URL pedida, os
+  códigos descobertos e a resposta inteira.
+- **Limpo:** `data/processed/ibge_desocupacao_jovem.csv`, em formato longo
+  (uma linha por período, local e grupo).
+
+| Coluna | Tipo | Exemplo | O que é |
+|---|---|---|---|
+| `periodo` | texto | `2026-T2` | trimestre, legível |
+| `periodo_codigo` | texto | `202602` | o código do IBGE (AAAA0T), ordenável |
+| `nivel` | texto | `UF` | Brasil · Grande Região · UF |
+| `localidade` | texto | `Bahia` | nome do lugar |
+| `grupo_idade` | texto | `18 a 24 anos` | `14 a 17 anos` · `18 a 24 anos` · `total` |
+| `taxa_desocupacao_pct` | número | `13.8` | % da força de trabalho do grupo que procurou e não achou trabalho |
+| `tabela` | número | `4094` | a tabela SIDRA de origem |
+| `coletado_em` | data-hora | `2026-11-24T10:02:11` | quando a coleta rodou |
+
+- **Limpeza:** valores que o IBGE marca como ausentes (`...`, `-`, `X`) são
+  **pulados**, não viram zero. Grupos de idade que o painel não usa não são
+  pedidos.
+- **Cuidado de leitura:** desocupado é quem procurou trabalho e não achou.
+  Quem só estuda está fora da força de trabalho e não entra na taxa. Por isso
+  a taxa não mede os jovens "nem-nem", só os que procuram emprego. Nas UFs há
+  menos jovens entrevistados, então a estimativa oscila mais de um trimestre
+  para outro que a do Brasil.
+- **Volume:** 1.787 linhas, do 4º trimestre de 2021 ao 3º de 2026 (os últimos
+  20 trimestres), coletadas em 25/11/2026. São menos que as 1.980 possíveis
+  (20 trimestres × 33 lugares × 3 grupos) porque a API devolveu os dois
+  primeiros trimestres (2021-T4 e 2022-T1) **só para o Brasil**, sem regiões
+  nem UFs, e no último trimestre não veio um valor (14 a 17 anos no Amapá).
+  Os valores que não vieram são pulados. Na prática, a série por região e por
+  UF começa em 2022-T2.
+- **Para que serve no painel:** na página "Dados e método", os números do
+  último trimestre, a série no tempo e o ranking das UFs para 18 a 24 anos. No
+  TP5, são os **fatos** que o Python calcula e o modelo lê na conversa.
+
+## Fonte 5 (TP5): a conversa — dado pessoal
+
+O que alguém pergunta na página Conversa é **dado pessoal** (pode revelar a
+situação de quem pergunta). Tratamento:
+
+| Pergunta | Resposta |
+|---|---|
+| **O que é guardado** | As perguntas e respostas, a memória usada, as notas (lugares e grupos citados) e o resumo, se houver. |
+| **Onde mora** | Com a API: `data/conversas/<id>.json`, só na máquina onde a API roda, fora do Git (`.gitignore`). No link publicado (modo direto, sem API): só na sessão do navegador; some ao fechar a aba. |
+| **Quem lê** | Só quem tem o id (32 caracteres aleatórios), guardado na sessão do navegador de quem conversa. Não há rota que liste conversas. |
+| **Quem apaga** | A própria pessoa: botão "Apagar conversa" (ou `DELETE /conversa/{id}`). Sem lixeira. |
+| **O que sai da máquina** | A pergunta, as últimas mensagens e os FATOS vão ao provedor do modelo (Groq; Gemini de reserva). A tela avisa para não escrever dado pessoal. O Groq não treina com os dados; o plano gratuito do Gemini, sim. Por isso ele é a reserva. |
+| **O que o log guarda** | Rota, status, tempo, provedor, tokens e memória. **Nunca** o texto da pergunta, só o tamanho. |
+
+Esquema de `data/conversas/<id>.json`:
+
+| Campo | Tipo | O que é |
+|---|---|---|
+| `id` | texto | 32 hexadecimais aleatórios (conferidos antes de virar nome de arquivo) |
+| `criada_em`, `atualizada_em` | data-hora | quando |
+| `memoria` | texto | `inteira`, `janela`, `resumo` ou `notas` |
+| `mensagens` | lista | `{papel, texto, quando, provedor?, numeros_sem_fonte?}` |
+| `notas` | objeto | `{lugares, grupos, grupo_em_foco}`, anotados pelo Python |
+| `resumo`, `resumo_ate` | texto, número | o resumo feito pelo modelo e até que mensagem ele vai |
+
+## Dados derivados da IA
+
+| Arquivo | Quem gera | O que é |
+|---|---|---|
+| `data/analisador/bancada_previsoes.csv` (e `_cpu`) | `python -m src.bancada` | A resposta de cada modelo local para cada notícia do banco de provas. |
+| `docs/bancada_resultados.md` (e `_cpu`) | idem | Acertos, memória e tempo de cada candidato (GPU e CPU). |
+| `data/teste_memoria/respostas.csv` | `python -m src.teste_memoria` | As 40 respostas do teste de 10 perguntas: memória, acerto, tokens, tempo, números sem fonte. |
+| `docs/teste_memoria.md` | idem | A tabela que decide a memória padrão. |
+| `docs/evidencias/*.md` | `python -m src.evidencias` | Chamadas reais à API, com o log de cada rodada. |
+
+## Como os dados chegam à IA (a linhagem completa)
+
+```
+Agência Brasil ─raspagem─► data/raw/*.html ─► noticias_emprego.csv + textos/*.txt ─┐
+                                                   │                                │
+                           banco_de_provas.csv (rótulos à mão)                      │
+                                                   │                                │
+API do IBGE ─JSON─► data/raw/ibge_4094_*.json ─► ibge_desocupacao_jovem.csv ────────┤
+                                                                                    ▼
+                                                             src/fatos.py (o Python calcula)
+                                                                                    │ FATOS
+            pergunta ─► src/memoria.py (o que o modelo lê da conversa) ─────────────┤
+                                                                                    ▼
+                                                     modelo online (Groq / Gemini) redige
+                                                                                    │
+                                     src/checagem.py: número fora dos FATOS vira aviso
+                                                                                    ▼
+                                                    resposta na tela + data/conversas/
+```
+
+Os **FATOS** de cada pergunta têm sempre: a desocupação do Brasil nos 3 grupos
+de idade no último trimestre (e um ano antes); a dos lugares em foco (os citados
+na pergunta ou lembrados pela memória); as 3 UFs com maior e menor desocupação
+de 18 a 24 anos; e o resumo das notícias (contagem por tendência e por setor, e
+as 3 mais recentes). O modelo não lê os CSVs nem calcula: lê esse bloco, de algumas
+centenas de tokens (o que cada pergunta leu, no total, está em
+`docs/teste_memoria.md`).
 
 ## Decisão sobre raspagem de páginas dinâmicas (Selenium)
 
@@ -210,7 +335,8 @@ direção a uma tabela limpa que a interface e a API consomem:
 | **JSON** (estruturado) | `POST /noticias` na API do projeto | CSV separado, após validação |
 | **JSON** (estruturado) | `POST /processar_texto` | análise estruturada (não gravada) |
 | **CSV** rotulado à mão | banco de provas | métricas da bancada (CSV + Markdown) |
-| **JSON** (semi-estruturado) | API do IBGE | tabela estruturada (uso futuro) |
+| **JSON** (semi-estruturado) | API do IBGE | tabela estruturada (painel e FATOS da conversa) |
+| **JSON** (estruturado) | `POST /conversa` | resposta + conversa em `data/conversas/` |
 
 É esse caminho **bruto → estruturado** que organiza toda a parte de dados. O
 destino é sempre `data/processed/`. Quem lê e grava ali para os outros é a

@@ -1,0 +1,10 @@
+Atualize o resumo de uma conversa sobre desemprego de jovens no Brasil.
+Em até 3 frases, em português, guarde na ordem em que apareceram: os lugares (estados, regiões, Brasil), os grupos de idade e os números citados. Não acrescente nada que não esteja abaixo.
+
+Resumo até agora:
+{resumo}
+
+Mensagens novas para incluir:
+{mensagens}
+
+Responda só com o resumo atualizado.

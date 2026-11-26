@@ -109,3 +109,29 @@ def enviar_noticia(titulo, editoria, ano_mes, url):
     corpo = {"titulo": titulo, "editoria": editoria or "n/d",
              "ano_mes": ano_mes or "n/d", "url": url}
     return _pedir("POST", "/noticias", json=corpo)
+
+
+# -------------------------------------------------------------------
+# CONVERSA (TP5)
+# -------------------------------------------------------------------
+def conversar(pergunta, conversa_id=None, memoria="notas"):
+    # Ate duas chamadas ao modelo online (resumo + resposta), cada uma com
+    # limite de 30 s na API - aqui esperamos um pouco mais que a soma.
+    corpo = {"pergunta": pergunta, "memoria": memoria}
+    if conversa_id:
+        corpo["conversa_id"] = conversa_id
+    return _pedir("POST", "/conversa", timeout=75, json=corpo)
+
+
+def obter_conversa(conversa_id):
+    return _pedir("GET", f"/conversa/{conversa_id}")
+
+
+def apagar_conversa(conversa_id):
+    """DELETE responde 204, sem corpo - por isso nao passa pelo _pedir (que le JSON)."""
+    try:
+        r = requests.delete(f"{API_URL}/conversa/{conversa_id}", timeout=10)
+    except requests.RequestException:
+        raise APIForaDoAr(f"Não há API respondendo em {API_URL}.")
+    if r.status_code not in (204, 404):  # 404: ja nao existia - o objetivo foi cumprido
+        raise _falha(r)

@@ -5,9 +5,14 @@ bancada.py - mede os modelos candidatos no banco de provas.
     python -m src.bancada                    # mede todos os que estao no disco
     python -m src.bancada --so regras,qwen15 # mede so alguns
 
-Anota acertos, erros e silencios, memoria e tempo, nesta maquina.
+    # na CPU (PowerShell) - grava em arquivos _cpu, sem apagar os da GPU:
+    $env:PAINEL_DISPOSITIVO="cpu"; python -m src.bancada --so regras,qwen15
 
-Saidas:
+Anota acertos, erros e silencios, memoria e tempo, nesta maquina: a media,
+a mediana e o p95 (o tempo que 95% das analises nao passam) por analise,
+o pico na GPU e o pico de RAM do processo (este, com psutil instalado).
+
+Saidas (com sufixo _cpu quando PAINEL_DISPOSITIVO=cpu):
     data/analisador/bancada_previsoes.csv   cada resposta de cada candidato
     docs/bancada_resultados.md              a tabela que entra na justificativa
 """
@@ -16,6 +21,7 @@ import csv
 import gc
 import os
 import platform
+import statistics
 import sys
 import time
 from collections import Counter
@@ -25,8 +31,35 @@ from src.data_access import BASE, carregar_noticias, id_da_noticia, ler_texto
 from src.tarefas import TIPOS, montar_texto
 
 BANCO = BASE / "data" / "analisador" / "banco_de_provas.csv"
-PREVISOES = BASE / "data" / "analisador" / "bancada_previsoes.csv"
-RELATORIO = BASE / "docs" / "bancada_resultados.md"
+
+# Medir na CPU nao pode apagar a medicao da GPU: arquivos separados.
+SUFIXO = "_cpu" if os.environ.get("PAINEL_DISPOSITIVO") == "cpu" else ""
+PREVISOES = BASE / "data" / "analisador" / f"bancada_previsoes{SUFIXO}.csv"
+RELATORIO = BASE / "docs" / f"bancada_resultados{SUFIXO}.md"
+
+
+class PicoDeRAM:
+    """O maior uso de RAM do processo (RSS) visto entre as analises. Sem psutil, None."""
+
+    def __init__(self):
+        try:
+            import psutil
+            self._proc = psutil.Process()
+        except ImportError:
+            self._proc = None
+        self.mb = None
+        self.ver()
+
+    def ver(self):
+        if self._proc is not None:
+            agora = self._proc.memory_info().rss / 2**20
+            self.mb = max(self.mb or 0, agora)
+
+
+def p95(valores):
+    """O tempo que 95% das analises nao passam (pelo metodo do vizinho mais proximo)."""
+    ordenados = sorted(valores)
+    return ordenados[min(len(ordenados) - 1, round(0.95 * (len(ordenados) - 1)))]
 
 # (apelido, familia, modelo no Hub) - a familia diz qual motor carrega.
 # So os candidatos MEDIDOS: os que foram considerados e descartados antes da
@@ -86,6 +119,7 @@ def maquina():
 def medir(apelido, familia, modelo, banco):
     """Roda um candidato no banco inteiro. Devolve (resumo, previsoes) ou None."""
     print(f"\n[{apelido}] carregando {modelo or 'regras'}...")
+    ram = PicoDeRAM()
     try:
         motor = carregar_motor(familia, modelo)
     except OSError:
@@ -96,11 +130,14 @@ def medir(apelido, familia, modelo, banco):
         _liberar_gpu()
         return None
 
-    import_torch = familia != "regras"
-    if import_torch:
+    # So mede a GPU se o MOTOR esta nela (na CPU, a placa pode existir e ficar parada).
+    na_gpu = False
+    if familia != "regras":
         import torch
-        if torch.cuda.is_available():
+        na_gpu = str(getattr(motor, "dispositivo", "cuda" if torch.cuda.is_available() else "cpu")).startswith("cuda")
+        if na_gpu:
             torch.cuda.reset_peak_memory_stats()
+    ram.ver()
 
     carga = getattr(motor, "segundos_para_carregar", 0.0)
     previsoes, tempos = [], []
@@ -110,19 +147,22 @@ def medir(apelido, familia, modelo, banco):
             r = motor.analisar(item["texto"], tipo)
             seg = time.perf_counter() - inicio
             tempos.append(seg)
+            ram.ver()
             previsoes.append({
                 "candidato": apelido, "id": item["id"], "tipo": tipo,
                 "esperado": item[tipo], "previsto": r["categoria"] or "",
                 "confianca": r["confianca"], "segundos": round(seg, 4),
             })
 
-    pico_gpu = None
-    if import_torch and torch.cuda.is_available():
-        pico_gpu = round(torch.cuda.max_memory_allocated() / 2**20)
+    pico_gpu = round(torch.cuda.max_memory_allocated() / 2**20) if na_gpu else None
 
+    medidos = tempos[1:] or tempos  # sem o 1o (aquecimento)
     resumo = {"apelido": apelido, "motor": motor.descricao, "memoria_mb": motor.memoria_mb,
               "pico_gpu_mb": pico_gpu, "carga_s": round(carga, 1),
-              "s_por_analise": round(sum(tempos[1:]) / max(len(tempos) - 1, 1), 3)}  # sem o 1o (aquecimento)
+              "pico_ram_mb": round(ram.mb) if ram.mb else None,
+              "s_por_analise": round(sum(medidos) / len(medidos), 3),
+              "s_mediana": round(statistics.median(medidos), 3),
+              "s_p95": round(p95(medidos), 3)}
     for tipo in TIPOS:
         p = [x for x in previsoes if x["tipo"] == tipo]
         certos = sum(x["previsto"] == x["esperado"] for x in p)
@@ -131,7 +171,8 @@ def medir(apelido, familia, modelo, banco):
         resumo[tipo] = {"certos": certos, "erros": len(erros), "calados": calados, "n": len(p),
                         "erros_confiantes": sum(x["confianca"] >= 0.9 for x in erros)}
     print(f"[{apelido}] tendencia {resumo['tendencia']['certos']}/{len(banco)} · "
-          f"setor {resumo['setor']['certos']}/{len(banco)} · {resumo['s_por_analise']} s por analise")
+          f"setor {resumo['setor']['certos']}/{len(banco)} · {resumo['s_por_analise']} s por analise "
+          f"(mediana {resumo['s_mediana']} · p95 {resumo['s_p95']})")
 
     del motor
     _liberar_gpu()
@@ -151,7 +192,8 @@ def _liberar_gpu():
 def linha_base(banco):
     """'Sempre a categoria mais comum': o minimo que um modelo precisa bater."""
     base = {"apelido": "sempre-a-mais-comum", "motor": "chuta a categoria mais frequente do banco",
-            "memoria_mb": 0, "pico_gpu_mb": None, "carga_s": 0, "s_por_analise": 0}
+            "memoria_mb": 0, "pico_gpu_mb": None, "carga_s": 0, "pico_ram_mb": None,
+            "s_por_analise": 0, "s_mediana": 0, "s_p95": 0}
     for tipo in TIPOS:
         mais_comum, certos = Counter(i[tipo] for i in banco).most_common(1)[0]
         base[tipo] = {"certos": certos, "erros": len(banco) - certos, "calados": 0,
@@ -172,9 +214,13 @@ def escrever_relatorio(resumos, previsoes, banco):
           "**Máquina:** " + " · ".join(maquina()), "",
           f"**Banco de provas:** {n} notícias reais do acervo, rotuladas à mão antes da medição "
           "(`data/analisador/banco_de_provas.csv`). Cada notícia é analisada nas duas tarefas.", "",
+          f"**Dispositivo pedido:** `PAINEL_DISPOSITIVO={os.environ.get('PAINEL_DISPOSITIVO', 'auto')}` "
+          "(o dispositivo de cada modelo aparece embaixo do nome).", "",
+          "Tempos sem a 1ª análise (aquecimento). p95 = o tempo que 95% das análises não passam.", "",
           "| Candidato | Tendência (certos/erros/calados) | Setor (certos/erros/calados) "
-          "| Erros com confiança ≥ 0,9 | Memória dos pesos | Pico na GPU | Carga | s por análise |",
-          "|---|---|---|---|---|---|---|---|"]
+          "| Erros com confiança ≥ 0,9 | Memória dos pesos | Pico na GPU | Pico de RAM | Carga "
+          "| s por análise (média · mediana · p95) |",
+          "|---|---|---|---|---|---|---|---|---|"]
     for r in resumos:
         t, s = r["tendencia"], r["setor"]
         md.append(
@@ -183,7 +229,8 @@ def escrever_relatorio(resumos, previsoes, banco):
             f"| {s['certos']}/{n} · {s['erros']} · {s['calados']} "
             f"| {t['erros_confiantes'] + s['erros_confiantes']} "
             f"| {r['memoria_mb']:.0f} MB | {r['pico_gpu_mb'] or '—'} {'MB' if r['pico_gpu_mb'] else ''} "
-            f"| {r['carga_s']} s | {r['s_por_analise']} |")
+            f"| {r['pico_ram_mb'] or '—'} {'MB' if r['pico_ram_mb'] else ''} "
+            f"| {r['carga_s']} s | {r['s_por_analise']} · {r['s_mediana']} · {r['s_p95']} |")
 
     md += ["", "## Onde cada candidato errou", ""]
     titulos = {i["id"]: i["titulo"] for i in banco}
