@@ -40,9 +40,12 @@ def obter_todas():
     if via == "api":
         st.sidebar.caption("Dados: via API do projeto")
     else:
-        st.sidebar.warning(
-            "A API do projeto não respondeu: as notícias foram lidas direto do "
-            "disco, e o Analisador fica indisponível. Para ligá-la: "
+        # Vale para os dois casos: o link publicado (onde a API nao roda) e a
+        # maquina de quem esqueceu de ligar a API.
+        st.sidebar.info(
+            "Sem a API do projeto: as notícias vêm dos arquivos do repositório e "
+            "a Conversa fala direto com o assistente. Só o Analisador (modelo "
+            "local) precisa da API, rodando o projeto na máquina: "
             "`uvicorn api.main:app`"
         )
     return noticias + enviadas, fonte
