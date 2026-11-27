@@ -39,12 +39,12 @@ todas, fonte = obter_todas()
 guarda_sem_dados(todas)
 filtradas = filtros_sidebar(todas)
 
-st.caption(f"Analisando {len(filtradas)} de {len(todas)} noticias.")
+st.caption(f"Analisando {len(filtradas)} de {len(todas)} notícias. Use os filtros na barra lateral.")
 
 # -------------------------------------------------------------------
 # NUVEM DE PALAVRAS + FREQUENCIA
 # -------------------------------------------------------------------
-st.header("O que essas noticias mais falam")
+st.header("O que essas notícias mais falam")
 
 contagem = contar_palavras(filtradas)
 
@@ -54,14 +54,15 @@ if contagem:
     with col_n:
         st.subheader("Nuvem de palavras")
         nuvem = WordCloud(
-            width=800, height=400, background_color="white", colormap="viridis",
+            # Fundo transparente: a nuvem fica bem no tema claro e no escuro.
+            width=800, height=400, mode="RGBA", background_color=None, colormap="viridis",
         ).generate_from_frequencies(contagem)
         st.image(nuvem.to_array(), width="stretch")
 
     with col_b:
         st.subheader("Palavras mais frequentes")
         st.bar_chart(dict(contagem.most_common(12)), horizontal=True)
-        st.caption("A nuvem mostra destaque; o grafico mostra a escala real.")
+        st.caption("A nuvem mostra destaque; o gráfico mostra a escala real.")
 else:
     st.info("Poucas palavras para montar a nuvem com esse filtro.")
 
@@ -74,10 +75,10 @@ st.header("Estatísticas")
 
 col_e1, col_e2 = st.columns(2)
 with col_e1:
-    st.subheader("Noticias por editoria")
+    st.subheader("Notícias por editoria")
     st.bar_chart(dict(Counter(n["editoria"] for n in filtradas)))
 with col_e2:
-    st.subheader("Noticias por mes")
+    st.subheader("Notícias por mês")
     por_mes = Counter(n["ano_mes"] for n in filtradas)
     st.bar_chart(dict(sorted(por_mes.items())))
 

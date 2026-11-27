@@ -34,12 +34,19 @@ def mostrar_falha(f):
 # -------------------------------------------------------------------
 try:
     estado = cliente_api.saude()
-except cliente_api.APIForaDoAr as e:
-    st.warning(
-        f"{e} O Analisador precisa da API do projeto, que roda na sua "
-        "máquina. Em outro terminal, na raiz do projeto:\n\n"
-        "```\nuvicorn api.main:app\n```"
+except cliente_api.APIForaDoAr:
+    # No link publicado nunca ha API: em vez de um erro, a explicacao e o caminho.
+    st.info(
+        "**O Analisador roda só na máquina de quem instala o projeto.** O modelo de linguagem "
+        "(Qwen2.5-1.5B) fica no disco e é carregado pela API do projeto, sem internet, e isso não "
+        "cabe no servidor gratuito do link publicado.\n\n"
+        "Para usar: na raiz do projeto, `uvicorn api.main:app` em um terminal e "
+        "`streamlit run app.py` em outro.",
+        icon="💻",
     )
+    st.markdown("**Enquanto isso, aqui no link:**")
+    st.page_link("paginas/ciclo.py", label="Veja como o modelo foi escolhido (bancada de 6 candidatos)", icon="🔄")
+    st.page_link("paginas/conversa.py", label="Converse com o assistente, que funciona aqui", icon="💬")
     st.stop()
 
 if not estado["modelo_carregado"]:

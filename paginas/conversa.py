@@ -41,10 +41,53 @@ def conversa_direta_de(msgs):
 def perguntar_direto(pergunta, memoria):
     chaves_dos_secrets()
     if st.session_state.get("conversa_local") is None:
-        st.session_state.conversa_local = conversa_direta_de(st.session_state.conversa_msgs[:-1])
+        st.session_state.conversa_local = conversa_direta_de(st.session_state.conversa_msgs)
     c = st.session_state.conversa_local
     resultado = nucleo.responder(c, pergunta, memoria)  # pode levantar LLMIndisponivel
     return nucleo.registrar(c, pergunta, memoria, resultado)
+
+
+def pedir_resposta(pergunta, memoria):
+    """
+    Tenta a API; sem API (ex.: link publicado), chama o modelo direto.
+    Devolve a resposta (dict) ou None - neste caso, ja mostrou o motivo na tela.
+    """
+    if st.session_state.conversa_modo != "direto":
+        try:
+            d = cliente_api.conversar(pergunta, st.session_state.conversa_id, memoria)
+            st.session_state.conversa_modo = "api"
+            return d
+        except cliente_api.APIForaDoAr:
+            st.session_state.conversa_modo = "direto"
+        except cliente_api.FalhaDaAPI as f:
+            if f.status == 404:  # a conversa foi apagada por fora: a proxima comeca outra
+                st.session_state.conversa_id = None
+            (st.warning if f.e_aviso else st.error)("\n".join(f.mensagens))
+            return None
+    try:
+        return perguntar_direto(pergunta, memoria)
+    except llm_api.LLMIndisponivel as e:
+        st.warning("O assistente está indisponível agora ("
+                   + "; ".join(f"{p}: {m}" for p, m in e.motivos.items())
+                   + "). O resto do painel funciona normalmente; tente de novo em instantes.")
+        return None
+
+
+def mensagem_do_assistente(d):
+    """A resposta como a tela mostra: texto, aviso de numero sem fonte e o rodape."""
+    l = d["leitura"]
+    modo = " · direto, sem API" if st.session_state.conversa_modo == "direto" else ""
+    rodape = (f"{d['provedor']} · {d['modelo']} · {d['segundos']:.1f} s{modo} · memória {l['memoria']}: "
+              f"leu {l['mensagens_enviadas']} de {l['mensagens_na_conversa']} mensagens"
+              + (" · +1 chamada de resumo" if d["chamada_de_resumo"] else "")
+              + (" · números conferidos ✓" if not d["numeros_sem_fonte"] else ""))
+    if d["falhas_antes"]:
+        rodape += " · antes, falharam: " + "; ".join(f"{p} ({m})" for p, m in d["falhas_antes"].items())
+    aviso = None
+    if d["numeros_sem_fonte"]:
+        aviso = ("Estes números da resposta não estão nos dados do painel: "
+                 + ", ".join(d["numeros_sem_fonte"]) + ". Confira antes de usar.")
+    return {"papel": "assistant", "texto": d["resposta"], "aviso": aviso, "rodape": rodape}
 
 DESCRICAO = {
     "notas": "Últimas 2 trocas + os lugares e grupos de idade já citados, anotados pelo Python. "
@@ -127,54 +170,17 @@ if not st.session_state.conversa_msgs:
 pergunta = st.chat_input("Pergunte sobre os dados do painel") or st.session_state.pop("pergunta_pronta", None)
 
 if pergunta:
-    st.session_state.conversa_msgs.append({"papel": "user", "texto": pergunta})
+    # Mostra a pergunta e espera a resposta; so depois de dar certo as duas
+    # entram no historico. Se der errado, nada muda na conversa.
     with st.chat_message("user"):
         st.markdown(pergunta)
-    with st.chat_message("assistant"):
-        with st.spinner("Calculando os fatos e consultando o assistente..."):
-            d = None
-            if st.session_state.conversa_modo != "direto":
-                try:
-                    d = cliente_api.conversar(pergunta, st.session_state.conversa_id, memoria)
-                    st.session_state.conversa_modo = "api"
-                except cliente_api.APIForaDoAr:
-                    st.session_state.conversa_modo = "direto"  # sem API (ex.: Streamlit Cloud)
-                except cliente_api.FalhaDaAPI as f:
-                    st.session_state.conversa_msgs.pop()
-                    if f.status == 404:  # a conversa foi apagada por fora: comeca outra
-                        st.session_state.conversa_id = None
-                    (st.warning if f.e_aviso else st.error)("\n".join(f.mensagens))
-                    st.stop()
-            if d is None:
-                try:
-                    d = perguntar_direto(pergunta, memoria)
-                except llm_api.LLMIndisponivel as e:
-                    st.session_state.conversa_msgs.pop()
-                    st.warning("O assistente está indisponível agora ("
-                               + "; ".join(f"{p}: {m}" for p, m in e.motivos.items())
-                               + "). O resto do painel funciona normalmente - tente de novo em instantes.")
-                    st.stop()
-
+    with st.chat_message("assistant"), st.spinner("Calculando os fatos e consultando o assistente..."):
+        d = pedir_resposta(pergunta, memoria)
+    if d is not None:
         st.session_state.conversa_id = d["conversa_id"]
-        aviso = None
-        if d["numeros_sem_fonte"]:
-            aviso = ("Estes números da resposta não estão nos dados do painel: "
-                     + ", ".join(d["numeros_sem_fonte"]) + ". Confira antes de usar.")
-        l = d["leitura"]
-        modo = " · direto, sem API" if st.session_state.conversa_modo == "direto" else ""
-        rodape = (f"{d['provedor']} · {d['modelo']} · {d['segundos']:.1f} s{modo} · memória {l['memoria']}: "
-                  f"leu {l['mensagens_enviadas']} de {l['mensagens_na_conversa']} mensagens"
-                  + (" · +1 chamada de resumo" if d["chamada_de_resumo"] else "")
-                  + (" · números conferidos ✓" if not d["numeros_sem_fonte"] else ""))
-        st.markdown(d["resposta"])
-        if aviso:
-            st.warning(aviso, icon="⚠️")
-        st.caption(rodape)
-        if d["falhas_antes"]:
-            st.caption("Antes deste, falharam: " + "; ".join(f"{p} ({m})" for p, m in d["falhas_antes"].items()))
-        st.session_state.conversa_msgs.append(
-            {"papel": "assistant", "texto": d["resposta"], "aviso": aviso, "rodape": rodape})
-        st.session_state.conversa_leitura = l
+        st.session_state.conversa_leitura = d["leitura"]
+        st.session_state.conversa_msgs += [{"papel": "user", "texto": pergunta}, mensagem_do_assistente(d)]
+        st.rerun()  # redesenha com a conversa atualizada (some o "Para comecar")
 
 # --- o que o modelo leu (transparencia) ------------------------------------
 if st.session_state.get("conversa_leitura"):

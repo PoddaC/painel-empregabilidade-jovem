@@ -211,7 +211,9 @@ a bancada.
 ```
 app.py                  roteador do painel (st.navigation)
 comum.py                o que as páginas compartilham (pede o acervo à API)
-paginas/                Início · Notícias · Análise · Analisador (IA) · Conversa (IA) · Dados e método
+paginas/                Painel: Início · Conversa (IA) · Notícias · Temas das notícias
+                        Como foi feito: Do dado ao insight · Analisador (IA local) · Dados e método
+graficos.py             os gráficos e blocos visuais que mais de uma página usa (cores fixas por grupo)
 prompts/                os prompts da Conversa, com a justificativa (LEIA-ME.md)
 api/
   main.py               monta a API: lifespan, routers, rede de segurança do 500
@@ -236,6 +238,7 @@ src/
   motor_zeroshot.py     candidato zero-shot (só na bancada)
   cliente_api.py        o painel falando com a API (lê pelo status)
   evidencias.py         grava chamadas reais à API em docs/evidencias/
+  indicadores.py        os números do IBGE que as páginas mostram, já calculados
   fatos.py              o que o modelo da Conversa lê: números calculados + entidades
   memoria.py            as 4 memórias (inteira, janela, resumo, notas)
   llm_api.py            Groq e Gemini, com reserva e tempo limite

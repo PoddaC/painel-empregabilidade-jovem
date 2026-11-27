@@ -31,16 +31,18 @@ if "uploader_key" not in st.session_state:
 # Uma pergunta, uma pagina. O menu deixa de ser a listagem de uma pasta e
 # vira codigo: titulo, icone e secoes sao decisao nossa - e cada pagina
 # ganha um endereco proprio, que da para mandar por link.
+# Duas secoes, por publico: "Painel" e o que quem decide usa; "Como foi feito"
+# e o que mostra o metodo (e o Analisador, que so roda na maquina).
 pagina = st.navigation({
     "Painel": [
         st.Page("paginas/inicio.py", title="Início", icon="🏠", default=True),
-        st.Page("paginas/ciclo.py", title="Do dado ao insight", icon="🔄"),
-        st.Page("paginas/noticias.py", title="Notícias", icon="📰"),
-        st.Page("paginas/analise.py", title="Análise", icon="📊"),
-        st.Page("paginas/analisador.py", title="Analisador (IA)", icon="🤖"),
         st.Page("paginas/conversa.py", title="Conversa (IA)", icon="💬"),
+        st.Page("paginas/noticias.py", title="Notícias", icon="📰"),
+        st.Page("paginas/analise.py", title="Temas das notícias", icon="📊"),
     ],
-    "Sobre o projeto": [
+    "Como foi feito": [
+        st.Page("paginas/ciclo.py", title="Do dado ao insight", icon="🔄"),
+        st.Page("paginas/analisador.py", title="Analisador (IA local)", icon="🤖"),
         st.Page("paginas/dados.py", title="Dados e método", icon="🗂️"),
     ],
 })

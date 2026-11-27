@@ -15,8 +15,8 @@ PROCESSED = BASE / "data" / "processed"
 CSV_NOTICIAS = PROCESSED / "noticias_emprego.csv"
 CSV_IBGE = PROCESSED / "ibge_desocupacao_jovem.csv"
 
-FONTE = "Agencia Brasil / EBC - tag 'emprego' (coleta via scraping)"
-FONTE_IBGE = "IBGE - PNAD Continua trimestral, tabela SIDRA 4094 (coleta via API)"
+FONTE = "Agência Brasil / EBC, tag 'emprego' (raspagem)"
+FONTE_IBGE = "IBGE, PNAD Contínua trimestral, tabela 4094 (API de agregados)"
 
 
 def carregar_noticias():
@@ -28,7 +28,7 @@ def carregar_noticias():
     lista vazia e avisa na fonte - quem chama decide o que mostrar.
     """
     if not CSV_NOTICIAS.exists():
-        return [], FONTE + " [ainda nao coletado - rode: python -m src.coletar]"
+        return [], FONTE + " [ainda não coletado; rode: python -m src.coletar]"
     with CSV_NOTICIAS.open(encoding="utf-8") as f:
         linhas = list(csv.DictReader(f))
     return linhas, FONTE
@@ -76,7 +76,7 @@ def carregar_ibge():
     NAO mostra numero de exemplo no lugar.
     """
     if not CSV_IBGE.exists():
-        return [], FONTE_IBGE + " [ainda nao coletado - rode: python -m src.coletar_ibge]"
+        return [], FONTE_IBGE + " [ainda não coletado; rode: python -m src.coletar_ibge]"
     with CSV_IBGE.open(encoding="utf-8") as f:
         linhas = list(csv.DictReader(f))
     for l in linhas:

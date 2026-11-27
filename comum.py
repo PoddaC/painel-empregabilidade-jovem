@@ -24,7 +24,7 @@ def obter_noticias_coletadas():
         noticias, fonte = carregar_noticias()
         lidas = [{**n, "id": id_da_noticia(n), "origem": "coletada",
                   "tem_texto": bool(n.get("arquivo_texto"))} for n in noticias]
-        return lidas, fonte + " - lida do disco (a API nao respondeu)", "disco"
+        return lidas, fonte + ", lida dos arquivos do projeto", "disco"
 
 
 def obter_todas():
@@ -42,11 +42,9 @@ def obter_todas():
     else:
         # Vale para os dois casos: o link publicado (onde a API nao roda) e a
         # maquina de quem esqueceu de ligar a API.
-        st.sidebar.info(
-            "Sem a API do projeto: as notícias vêm dos arquivos do repositório e "
-            "a Conversa fala direto com o assistente. Só o Analisador (modelo "
-            "local) precisa da API, rodando o projeto na máquina: "
-            "`uvicorn api.main:app`"
+        st.sidebar.caption(
+            "Rodando sem a API do projeto: tudo funciona, menos o Analisador "
+            "(IA local), que precisa de `uvicorn api.main:app` na máquina."
         )
     return noticias + enviadas, fonte
 
@@ -55,7 +53,7 @@ def guarda_sem_dados(todas):
     """Se nao ha dado nenhum, nao adianta desenhar o resto da pagina."""
     if not todas:
         st.warning(
-            "Ainda nao ha noticias coletadas. Rode a coleta no terminal, "
+            "Ainda não há notícias coletadas. Rode a coleta no terminal, "
             "a partir da raiz do projeto:\n\n"
             "```\npython -m src.coletar\n```"
         )
@@ -94,7 +92,7 @@ def filtros_sidebar(todas):
     st.session_state["filtro_editoria"] = escolhida
 
     busca = st.sidebar.text_input(
-        "Buscar no titulo",
+        "Buscar no título",
         value=st.session_state.get("filtro_busca", ""),
         placeholder="ex: desemprego, vagas...",
     )
@@ -107,5 +105,5 @@ def filtros_sidebar(todas):
         termo = busca.lower().strip()
         filtradas = [n for n in filtradas if termo in n["titulo"].lower()]
 
-    st.sidebar.caption(f"{len(filtradas)} de {len(todas)} noticias no recorte.")
+    st.sidebar.caption(f"{len(filtradas)} de {len(todas)} notícias no recorte.")
     return filtradas

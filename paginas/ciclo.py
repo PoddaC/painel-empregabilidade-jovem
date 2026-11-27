@@ -2,10 +2,9 @@
 ciclo.py - do dado ao insight: o ciclo de ciencia de dados do projeto, com
 os numeros de verdade de cada etapa.
 
-Coleta -> preparacao -> modelos -> insights. Esta pagina le SO arquivos do
-repositorio (CSVs e resultados medidos), sem a API: funciona tambem no
-deploy. Os numeros dos graficos e das metricas saem dos arquivos; o texto
-interpreta o que eles mostram.
+Coleta -> preparacao -> modelos -> insights. Le SO arquivos do repositorio
+(CSVs e resultados medidos), sem a API: funciona tambem no link publicado.
+Os numeros saem dos arquivos; o texto interpreta o que eles mostram.
 """
 
 import csv
@@ -13,15 +12,19 @@ from collections import Counter, defaultdict
 
 import streamlit as st
 
+from graficos import barras_destaque, serie_jovens
 from src.data_access import BASE, carregar_ibge, carregar_noticias, id_da_noticia
+from src.indicadores import milhar, pct, resumo_ibge, trimestre_de
 from src.tarefas import rotulo
 
 BANCO = BASE / "data" / "analisador" / "banco_de_provas.csv"
 BANCADA = BASE / "data" / "analisador" / "bancada_previsoes.csv"
 TESTE_MEMORIA = BASE / "data" / "teste_memoria" / "respostas.csv"
 
-NOMES = {"regras": "Regras (palavras-chave)", "mdeberta": "mDeBERTa (zero-shot)",
-         "qwen05": "Qwen2.5-0.5B", "qwen15": "Qwen2.5-1.5B (escolhido)", "qwen3_17": "Qwen3-1.7B"}
+# Nomes curtos para os graficos; o escolhido leva a estrela.
+MODELOS = {"regras": "Regras", "mdeberta": "mDeBERTa", "qwen05": "Qwen2.5 0.5B",
+           "qwen15": "Qwen2.5 1.5B ★", "qwen3_17": "Qwen3 1.7B"}
+ESCOLHIDO = MODELOS["qwen15"]
 
 
 def ler_csv(caminho):
@@ -31,164 +34,148 @@ def ler_csv(caminho):
         return list(csv.DictReader(f))
 
 
-def fmt(x, casas=1):
-    return f"{x:.{casas}f}".replace(".", ",")
-
-
-def trimestre(ano_mes):
-    """'2025-08' -> '2025-T3'."""
-    ano, mes = ano_mes.split("-")
-    return f"{ano}-T{(int(mes) - 1) // 3 + 1}"
-
-
 noticias, _ = carregar_noticias()
 ibge, fonte_ibge = carregar_ibge()
+r = resumo_ibge(ibge)
 banco = ler_csv(BANCO)
 bancada = ler_csv(BANCADA)
 teste = ler_csv(TESTE_MEMORIA)
 
 st.title("Do dado ao insight")
-st.caption(
-    "O ciclo de ciência de dados do projeto (TDSP), etapa por etapa, com os números de "
-    "verdade de cada uma. Tudo aqui é lido dos arquivos do repositório."
-)
+st.caption("O ciclo de ciência de dados do projeto (TDSP), etapa por etapa, com os números de "
+           "verdade de cada uma, lidos dos arquivos do repositório.")
+
+# Mapa do ciclo: as quatro etapas lado a lado, cada uma com o seu numero.
+etapas = st.columns(4)
+etapas[0].metric("1 · Coleta", f"{len(noticias)} + {milhar(len(ibge))}",
+                 help="Notícias raspadas + linhas do IBGE pela API.")
+etapas[1].metric("2 · Preparação", f"{len(banco)} rótulos", help="Notícias rotuladas à mão: o gabarito.")
+etapas[2].metric("3 · Modelos", "2 escolhidos", help="Um local (classifica) e um online (conversa), ambos por medição.")
+etapas[3].metric("4 · Insights", f"{r['brasil']['18 a 24 anos'] / r['brasil']['total']:.1f}×".replace(".", ",")
+                 if r else "—", help="Quantas vezes a desocupação de 18 a 24 anos supera a média.")
+st.divider()
 
 # ===========================================================================
 st.header("1. Coleta")
-c1, c2, c3 = st.columns(3)
-com_texto = sum(1 for n in noticias if (n.get("arquivo_texto") or "").strip())
-c1.metric("Notícias coletadas", len(noticias), help="Raspagem da tag 'emprego' da Agência Brasil (src/coletar.py).")
-c2.metric("Com texto integral", com_texto, help="Segunda passada, notícia por notícia (src/coletar_textos.py).")
-c3.metric("Linhas do IBGE", f"{len(ibge):,}".replace(",", "."),
-          help="API de agregados do IBGE, PNAD Contínua, tabela 4094 (src/coletar_ibge.py).")
 meses = sorted(n["ano_mes"] for n in noticias if n["ano_mes"] != "n/d")
-periodos = sorted({l["periodo"] for l in ibge})
-st.markdown(
-    f"- **Notícias:** Agência Brasil (Creative Commons), por **raspagem** do HTML, de "
-    f"{meses[0] if meses else '—'} a {meses[-1] if meses else '—'}.\n"
-    f"- **Desocupação por idade:** IBGE, pela **API** de agregados, de {periodos[0] if periodos else '—'} "
-    f"a {periodos[-1] if periodos else '—'}"
-    + (f", coletada em {ibge[0]['coletado_em'][:10]}." if ibge else ".")
-    + "\n- **A resposta bruta de cada fonte** fica guardada em `data/raw/`, como prova."
-)
+com_texto = sum(1 for n in noticias if (n.get("arquivo_texto") or "").strip())
+linhas_coleta = []
+if meses:
+    linhas_coleta.append(
+        f"- **Notícias:** {len(noticias)} da Agência Brasil (Creative Commons), por **raspagem** do HTML, "
+        f"de {meses[0]} a {meses[-1]}; {com_texto} com texto integral.")
+if r:
+    linhas_coleta.append(
+        f"- **Desocupação por idade:** {milhar(len(ibge))} linhas do IBGE (PNAD Contínua, tabela 4094), "
+        f"pela **API** de agregados, até o {r['periodo']}; coletadas em {r['coletado_em'][:10]}.")
+linhas_coleta.append("- **A resposta bruta de cada fonte** fica guardada em `data/raw/`, como prova.")
+st.markdown("\n".join(linhas_coleta))
 
 # ===========================================================================
 st.header("2. Preparação")
-possiveis = len(periodos) * len({l["localidade"] for l in ibge}) * 3
+if r:
+    possiveis = len({l["periodo"] for l in ibge}) * len({l["localidade"] for l in ibge}) * 3
+    faltam = f"{milhar(len(ibge))} de {milhar(possiveis)}"
+else:
+    faltam = "—"
 st.markdown(
     f"- **{len(banco)} notícias rotuladas à mão** (tendência e setor) antes de medir qualquer modelo: "
     "é o gabarito da bancada.\n"
-    f"- **IBGE em formato longo** (uma linha por trimestre, lugar e grupo de idade). Valores que o IBGE "
-    f"não divulga são **pulados**, não viram zero: {len(ibge):,} de {possiveis:,} possíveis.".replace(
-        f"{len(ibge):,}", f"{len(ibge):,}".replace(",", ".")).replace(f"{possiveis:,}", f"{possiveis:,}".replace(",", "."))
-    + "\n- **Textos em UTF-8**, um arquivo por notícia; no CSV, só o caminho."
+    "- **IBGE em formato longo:** uma linha por trimestre, lugar e grupo de idade. Valores que o IBGE "
+    f"não divulga são **pulados**, não viram zero ({faltam} possíveis).\n"
+    "- **Textos em UTF-8,** um arquivo por notícia; no CSV, só o caminho."
 )
 
 # ===========================================================================
 st.header("3. Modelos")
+
 st.subheader("Analisador: qual modelo local lê melhor a notícia?")
-st.caption("Acertos nas 42 notícias rotuladas à mão (bancada do TP4). A linha de base chuta sempre a categoria mais comum.")
 if bancada and banco:
     acertos = defaultdict(Counter)
     for p in bancada:
         acertos[p["candidato"]][p["tipo"]] += p["esperado"] == p["previsto"]
-    linhas = [{"modelo": "Sempre a mais comum (base)",
-               "Tendência": Counter(b["tendencia"] for b in banco).most_common(1)[0][1],
-               "Setor": Counter(b["setor"] for b in banco).most_common(1)[0][1]}]
-    linhas += [{"modelo": NOMES.get(c, c), "Tendência": a["tendencia"], "Setor": a["setor"]}
-               for c, a in acertos.items()]
-    st.bar_chart(linhas, x="modelo", y=["Tendência", "Setor"], stack=False, horizontal=True,
-                 x_label="notícias certas (de 42)", y_label="")
+    st.caption("Notícias certas, de 42 rotuladas à mão. A linha tracejada é a base: "
+               "chutar sempre a categoria mais comum.")
+    col_t, col_s = st.columns(2)
+    for col, tarefa, nome in ((col_t, "tendencia", "Tendência"), (col_s, "setor", "Setor")):
+        base = Counter(b[tarefa] for b in banco).most_common(1)[0][1]
+        with col:
+            st.markdown(f"**{nome}** · base = {base}")
+            barras_destaque([{"nome": MODELOS.get(c, c), "valor": a[tarefa]} for c, a in acertos.items()],
+                            ESCOLHIDO, "notícias certas", referencia=base)
     st.markdown(
-        "O **Qwen2.5-1.5B** foi escolhido: empata com as regras em tendência e acerta 29 das 30 notícias "
-        "que não são neutras. Em setor, nenhum modelo passa a linha de base, e por isso o setor ficou "
-        "marcado como **experimental**. Roda em 0,07 s na GPU e em 14 s na CPU "
-        "(detalhes em `docs/escolha_do_modelo.md`)."
+        f"O **{ESCOLHIDO.rstrip(' ★')}** foi escolhido: empata com as regras em tendência, lendo o "
+        "texto, e roda em 0,07 s na GPU (14 s na CPU). Em setor, nenhum modelo passa a base, "
+        "por isso o setor está marcado como **experimental**. Detalhes em `docs/escolha_do_modelo.md`."
     )
 else:
     st.info("Bancada ainda não rodada (python -m src.bancada).")
 
 st.subheader("Conversa: qual memória mantém o contexto?")
-st.caption("Teste de 10 perguntas (python -m src.teste_memoria): a 10ª volta ao primeiro estado citado.")
 if teste:
     por_mem = defaultdict(list)
     for t in teste:
         por_mem[t["memoria"]].append(t)
-    tabela = []
-    for m, ts in por_mem.items():
-        dec = next((t for t in ts if t["turno"] == "10"), None)
-        tabela.append({
-            "memória": m,
-            "acertos": f"{sum(t['acertou'] == 'True' for t in ts)}/10",
-            "10ª (volta ao 1º estado)": "✓" if dec and dec["acertou"] == "True" else "✗",
-            "tokens lidos na 10ª": int(dec["tokens_entrada"]) if dec and dec["tokens_entrada"] else None,
-            "chamadas a mais": sum(t["chamada_de_resumo"] == "True" for t in ts),
-        })
-    st.dataframe(tabela, hide_index=True, width="stretch")
-    serie = defaultdict(dict)
-    for m, ts in por_mem.items():
-        for t in ts:
-            if t["tokens_entrada"]:
-                serie[int(t["turno"])][m] = int(t["tokens_entrada"])
-    st.line_chart([{"pergunta": k, **v} for k, v in sorted(serie.items())], x="pergunta",
-                  y=list(por_mem), x_label="pergunta da conversa", y_label="tokens que o modelo leu")
+    st.caption("Teste de 10 perguntas (python -m src.teste_memoria): a 10ª volta ao primeiro estado citado.")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.markdown("**Acertos, de 10**")
+        barras_destaque([{"nome": m, "valor": sum(t["acertou"] == "True" for t in ts)} for m, ts in por_mem.items()],
+                        "notas", "acertos")
+    with col_b:
+        st.markdown("**Tokens lidos na 10ª pergunta** (custo)")
+        barras_destaque([{"nome": m, "valor": int(next(t for t in ts if t["turno"] == "10")["tokens_entrada"])}
+                         for m, ts in por_mem.items() if any(t["turno"] == "10" and t["tokens_entrada"] for t in ts)],
+                        "notas", "tokens")
+    extras = {m: sum(t["chamada_de_resumo"] == "True" for t in ts) for m, ts in por_mem.items()}
     st.markdown(
-        "A **inteira** lembra de tudo, mas o custo cresce a cada pergunta; a **janela** fica barata e "
-        "**esquece** o começo (errou a 10ª); o **resumo** acerta, mas paga chamadas a mais. As **notas** "
-        "acertam tudo lendo menos que a inteira e o resumo, sem chamada a mais: por isso são a padrão."
+        "A **inteira** lembra de tudo, mas fica mais cara a cada pergunta; a **janela** é barata e "
+        f"**esquece** o começo (errou a 10ª); o **resumo** acerta, mas paga {extras.get('resumo', 0)} chamadas "
+        "a mais. As **notas** acertam tudo lendo menos que a inteira e o resumo, sem chamada a mais: "
+        "por isso são a padrão."
     )
 else:
     st.info("Teste de memória ainda não rodado (python -m src.teste_memoria).")
 
 # ===========================================================================
 st.header("4. Insights")
-if ibge:
-    idx = {(l["localidade"], l["grupo_idade"], l["periodo_codigo"]): l["taxa_desocupacao_pct"] for l in ibge}
-    ult = max(l["periodo_codigo"] for l in ibge)
-    nome_ult = next(l["periodo"] for l in ibge if l["periodo_codigo"] == ult)
-    br = {g: idx.get(("Brasil", g, ult)) for g in ("14 a 17 anos", "18 a 24 anos", "total")}
-    ufs = sorted(((l["localidade"], l["taxa_desocupacao_pct"]) for l in ibge
-                  if l["nivel"] == "UF" and l["periodo_codigo"] == ult and l["grupo_idade"] == "18 a 24 anos"),
-                 key=lambda x: x[1])
-    tend = Counter(b["tendencia"] for b in banco)
+if r:
     st.markdown(
-        f"- **O jovem procura e não acha mais que a média:** no {nome_ult}, a desocupação de 18 a 24 anos "
-        f"foi de **{fmt(br['18 a 24 anos'])}%** e a de 14 a 17, de **{fmt(br['14 a 17 anos'])}%**, contra "
-        f"**{fmt(br['total'])}%** em todas as idades.\n"
-        + (f"- **A distância entre estados é grande:** para 18 a 24 anos, de **{fmt(ufs[0][1])}%** em "
-           f"{ufs[0][0]} a **{fmt(ufs[-1][1])}%** em {ufs[-1][0]}. Um programa nacional de "
-           "qualificação não serve igual para todos.\n" if ufs else "")
-        + (f"- **O noticiário é otimista:** das {len(banco)} notícias, {tend.get('otimista', 0)} têm tom "
-           "otimista. Isso combina com a queda da desocupação no gráfico abaixo, mas notícia boa no "
-           "agregado não quer dizer vaga para quem tem 18 anos.\n" if banco else "")
+        f"- **O jovem procura e não acha mais que a média:** no {r['periodo']}, {pct(r['brasil']['18 a 24 anos'])} "
+        f"de 18 a 24 anos e {pct(r['brasil']['14 a 17 anos'])} de 14 a 17, contra {pct(r['brasil']['total'])} "
+        "em todas as idades.\n"
+        f"- **A distância entre estados é grande:** de {pct(r['ufs'][-1][1])} em {r['ufs'][-1][0]} a "
+        f"{pct(r['ufs'][0][1])} em {r['ufs'][0][0]}, para 18 a 24 anos (o ranking completo está na Início)."
     )
 
-    st.subheader("Desocupação dos jovens × tom das notícias, trimestre a trimestre")
+    st.subheader("Desocupação dos jovens × tom das notícias")
     rot = {id_da_noticia(n): n for n in noticias}
     por_tri = defaultdict(Counter)
     for b in banco:
         n = rot.get(b["id"])
         if n and n["ano_mes"] != "n/d":
-            por_tri[trimestre(n["ano_mes"])][rotulo("tendencia", b["tendencia"])] += 1
-    tris = sorted(por_tri)
-    if tris:
-        codigo = {l["periodo"]: l["periodo_codigo"] for l in ibge}
-        janela_tri = [t for t in sorted({l["periodo"] for l in ibge}) if tris[0] <= t <= max(tris[-1], nome_ult)]
-        st.line_chart(
-            [{"trimestre": t, "18 a 24 anos": idx.get(("Brasil", "18 a 24 anos", codigo[t])),
-              "todas as idades": idx.get(("Brasil", "total", codigo[t]))} for t in janela_tri],
-            x="trimestre", y=["18 a 24 anos", "todas as idades"], y_label="desocupação no Brasil (%)",
-            x_label="", height=260,
+            por_tri[trimestre_de(n["ano_mes"])][rotulo("tendencia", b["tendencia"])] += 1
+    if por_tri:
+        inicio = min(por_tri)
+        tris = [p["trimestre"] for p in r["serie"] if p["trimestre"] >= inicio]
+        tom = Counter(b["tendencia"] for b in banco)
+        st.markdown(
+            f"Das {len(banco)} notícias, **{tom.get('otimista', 0)} têm tom otimista**. Isso combina com "
+            "a queda da desocupação no mesmo período, mas notícia boa no agregado não quer dizer vaga "
+            "para quem tem 18 anos: por isso o painel mostra os dois lado a lado."
         )
-        cats = sorted({c for v in por_tri.values() for c in v})
-        st.bar_chart([{"trimestre": t, **{c: por_tri[t].get(c, 0) for c in cats}} for t in janela_tri],
-                     x="trimestre", y=cats, y_label="notícias no acervo", x_label="", height=220)
-        st.caption("Dois gráficos, um eixo cada: a taxa (IBGE) em cima e a contagem de notícias "
-                   "por tom (rótulos à mão) embaixo, nos mesmos trimestres.")
+        col_l, col_n = st.columns(2)
+        with col_l:
+            st.caption("Desocupação no Brasil (IBGE)")
+            serie_jovens(r, desde=inicio, altura=260)
+        with col_n:
+            st.caption("Notícias no acervo, por tom (rótulos à mão)")
+            cats = sorted({c for v in por_tri.values() for c in v})
+            st.bar_chart([{"trimestre": t, **{c: por_tri[t].get(c, 0) for c in cats}} for t in tris],
+                         x="trimestre", y=cats, y_label="notícias", x_label="", height=260)
 else:
     st.info("Colete os dados do IBGE (python -m src.coletar_ibge) para ver os insights.")
 
 st.divider()
-st.markdown("**Quer perguntar do seu jeito?**")
-st.page_link("paginas/conversa.py", label="Conversa (IA) — pergunte sobre estes dados, com memória", icon="💬")
+st.page_link("paginas/conversa.py", label="Quer perguntar do seu jeito? Converse com o assistente", icon="💬")
 st.caption(f"Fontes: Agência Brasil / EBC · {fonte_ibge}")

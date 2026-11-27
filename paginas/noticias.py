@@ -27,20 +27,29 @@ todas, fonte = obter_todas()
 guarda_sem_dados(todas)
 filtradas = filtros_sidebar(todas)
 
-st.caption(f"Mostrando {len(filtradas)} de {len(todas)} noticias.")
+st.caption(f"Mostrando {len(filtradas)} de {len(todas)} notícias. Use os filtros na barra lateral.")
 
 if not filtradas:
-    st.info("Nenhuma noticia bate com esse filtro. Tente outro termo ou editoria.")
+    st.info("Nenhuma notícia bate com esse filtro. Tente outro termo ou editoria.")
 else:
     st.dataframe(
         filtradas,
         width="stretch",
         column_order=["titulo", "editoria", "ano_mes", "origem", "resumo", "url"],
+        column_config={
+            "titulo": st.column_config.TextColumn("Título", width="large"),
+            "editoria": "Editoria",
+            "ano_mes": "Mês",
+            "origem": "Origem",
+            "resumo": "Linha fina",
+            "url": st.column_config.LinkColumn("Matéria", display_text="abrir"),
+        },
+        hide_index=True,
     )
 
     # Baixa o RECORTE, nao a base inteira: o usuario leva o que esta vendo.
     st.download_button(
-        "Baixar estas noticias (CSV)",
+        "Baixar estas notícias (CSV)",
         data=para_csv(filtradas),
         file_name="noticias_filtradas.csv",
         mime="text/csv",
